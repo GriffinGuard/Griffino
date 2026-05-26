@@ -1,0 +1,500 @@
+[DaemonStarting]
+other = "Starting Griffino daemon..."
+
+[DaemonStarted]
+other = " Griffino daemon started\n  RabbitMQ: {{ .RabbitMQ }}\n  Redis:    {{ .Redis }}"
+
+[DaemonStopping]
+other = "Shutting down Griffino daemon..."
+
+[DaemonStopped]
+other = "Griffino daemon stopped"
+
+[DaemonAdminCreated]
+other = """
+─────────────────────────────────────────
+  First launch: admin account created    
+  Username: admin                        
+  Password: {{ printf "%-31s" .Password }}
+  Please change your password after login
+─────────────────────────────────────────"""
+
+[DaemonWaitingServices]
+other = "Waiting for system services to be ready..."
+
+[DaemonRabbitMQReady]
+other = "RabbitMQ is ready"
+
+[PluginInstalling]
+other = "Installing plugin {{ .ID }}..."
+
+[PluginInstalled]
+other = " Plugin {{ .ID }} installed"
+
+[PluginStarting]
+other = "Starting plugin {{ .ID }}..."
+
+[PluginPulling]
+other = "Pulling images for plugin {{ .ID }}..."
+
+[PluginStarted]
+other = " Plugin {{ .ID }} started"
+
+[PluginStopping]
+other = "Stopping plugin {{ .ID }}..."
+
+[PluginStopped]
+other = " Plugin {{ .ID }} stopped"
+
+[PluginUninstalling]
+other = "Uninstalling plugin {{ .ID }}..."
+
+[PluginUninstalled]
+other = " Plugin {{ .ID }} uninstalled"
+
+[PluginRestoring]
+other = "  Restoring plugin {{ .ID }}..."
+
+[PluginRestored]
+other = "   Plugin {{ .ID }} restored"
+
+[PluginRestoreFailed]
+other = "  ⚠ Failed to restore plugin {{ .ID }}: {{ .Error }}"
+
+[PluginInterrupted]
+other = "  Plugin {{ .ID }} startup was interrupted (stage: {{ .Stage }}), marked as failed"
+
+[StatusPendingSetup]
+other = "Pending Setup"
+
+[StatusReady]
+other = "Ready"
+
+[StatusPulling]
+other = "Pulling"
+
+[StatusStarting]
+other = "Starting"
+
+[StatusRunning]
+other = "Running"
+
+[StatusStopped]
+other = "Stopped"
+
+[StatusFailed]
+other = "Failed"
+
+[OperationSuccess]
+other = " Done"
+
+[OperationFailed]
+other = "✗ Failed: {{ .Error }}"
+
+[NotRunningError]
+other = "Griffino daemon is not running. Start it with: griffino daemon"
+
+[DevPluginInstalled]
+other = " Dev plugin {{ .ID }} registered"
+
+[DevPluginUninstalled]
+other = " Dev plugin {{ .ID }} uninstalled"
+
+[DevPluginStarted]
+other = " Dev plugin {{ .ID }} started"
+
+[DevPluginStopped]
+other = " Dev plugin {{ .ID }} stopped"
+
+[SystemRabbitMQ]
+other = "{{ .Container }} (127.0.0.1:{{ .Port }})"
+
+[SystemRedis]
+other = "{{ .Container }} (127.0.0.1:{{ .Port }})"
+
+[InstallLoadingManifest]
+other = "Loading plugin manifest..."
+
+[InstallCheckingAllowlist]
+other = "Checking image allowlist..."
+
+[InstallSuccess]
+other = "\n Plugin installed successfully"
+
+[InstallSuccessID]
+other = "  ID:      {{ .ID }}"
+
+[InstallSuccessName]
+other = "  Name:    {{ .Name }}"
+
+[InstallSuccessVersion]
+other = "  Version: {{ .Version }}"
+
+[InstallNextStep]
+other = "\nNext: griffino config {{ .ID }}"
+
+[DevInstallSuccess]
+other = "\n Dev plugin installed successfully\n  ID:      {{ .ID }}\n  Name:    {{ .Name }}\n  Version: {{ .Version }}"
+
+[DevInstallNextStep]
+other = "\nNext: griffino config {{ .ID }}  →  griffino dev start {{ .ID }}"
+
+[StartSuccess]
+other = "\n Plugin {{ .ID }} started successfully"
+
+[StartSuccessNetwork]
+other = "  Network:  {{ .Network }}"
+
+[StartSuccessMQUser]
+other = "  MQ User:  {{ .MQUser }}"
+
+[StartSuccessContainers]
+other = "  Containers:"
+
+[StartSuccessContainer]
+other = "    {{ printf \"%-30s\" .ServiceID }} → {{ .Container }}"
+
+[DevStartSuccess]
+other = "\n Dev plugin {{ .ID }} started successfully"
+
+[StopSuccess]
+other = "\n Plugin {{ .ID }} stopped"
+
+[DevStopSuccess]
+other = "\n Dev plugin {{ .ID }} stopped"
+
+[DevUninstallSuccess]
+other = "\n Dev plugin {{ .ID }} uninstalled"
+
+[DevUninstallForceSuccess]
+other = "\n Dev plugin {{ .ID }} stopped and uninstalled"
+
+[StatusNoPlugins]
+other = "No plugins installed"
+
+[StatusHeader]
+other = "{{ printf \"%-40s\" \"Plugin ID\" }} {{ printf \"%-15s\" \"Status\" }} Directory"
+
+[StatusHeaderSep]
+other = "{{ printf \"%-40s\" \"----------------------------------------\" }} {{ printf \"%-15s\" \"---------------\" }} --------------------"
+
+[StatusRuntimeInfo]
+other = "  {{ printf \"%-38s\" \"\" }} Network: {{ .Network }}  MQ User: {{ .MQUser }}"
+
+[StatusContainer]
+other = "  {{ printf \"%-38s\" \"\" }}   {{ printf \"%-28s\" .ServiceID }} → {{ .Container }}"
+
+[ConfigTitle]
+other = "Configuring plugin {{ .ID }}"
+
+[ConfigTip]
+other = "Tip: press Enter to use default value, password fields are hidden\n"
+
+[ConfigServiceHeader]
+other = "── Service: {{ .ID }} ──"
+
+[ConfigParamDesc]
+other = "  Description: {{ .Desc }}"
+
+[ConfigParamRequired]
+other = " *required"
+
+[ConfigSaved]
+other = " Config saved"
+
+[ConfigNextStep]
+other = "\nNext: griffino start {{ .ID }}"
+
+[AdminPasswordReset]
+other = " Admin password has been reset"
+
+[AdminPasswordPrompt]
+other = "Enter new password (min 8 characters):"
+
+[DevDaemonNotRunning]
+other = "Error: griffino daemon is not running, dev commands require daemon to be online."
+
+[DevDaemonStartHint]
+other = "Please run: griffino daemon"
+
+[ErrInvalidPath]
+other = "invalid path: {{ .Error }}"
+
+[ErrOpenDatabase]
+other = "failed to open database: {{ .Error }}"
+
+[ErrLoadManifest]
+other = "failed to load manifest: {{ .Error }}"
+
+[ErrValidateManifest]
+other = "manifest validation failed: {{ .Error }}"
+
+[ErrSavePlugin]
+other = "failed to save plugin: {{ .Error }}"
+
+[ErrPluginAlreadyInstalled]
+other = "plugin {{ .ID }} is already installed (status: {{ .Status }}), run uninstall first"
+
+[ErrPluginNotInstalled]
+other = "plugin {{ .ID }} is not installed, run griffino install first"
+
+[ErrInputParam]
+other = "failed to input param {{ .Key }}: {{ .Error }}"
+
+[ErrSaveConfig]
+other = "failed to save config: {{ .Error }}"
+
+[ErrParamRequired]
+other = "param {{ .Key }} is required"
+
+[ErrAdminNotFound]
+other = "admin account does not exist"
+
+[ErrPasswordTooShort]
+other = "password must be at least 8 characters"
+
+[ErrUpdatePassword]
+other = "failed to update password: {{ .Error }}"
+
+[ErrGetCurrentUser]
+other = "failed to get current user: {{ .Error }}"
+
+[ErrRootNotAllowed]
+other = "griffino must not be run as root"
+
+[ErrRemoveContainer]
+other = "failed to remove conflicting container: {{ .Error }}"
+
+[ErrContainerNameEmpty]
+other = "container name cannot be empty"
+
+[container.starting_service]
+other = "Starting service {{.Service}}..."
+
+[container.already_running]
+other = "Container {{.Container}} is already running, skipping"
+
+[container.restarting]
+other = "Restarting stopped container {{.Container}}"
+
+[container.stopping]
+other = "Stopping container {{.Container}}"
+
+[container.pulling_image]
+other = "Pulling image {{.Image}}..."
+
+[container.checking_image]
+other = "Checking image {{.Image}} for service {{.Service}}..."
+
+[container.err_topo_sort]
+other = "Failed to resolve service dependency order"
+
+[container.err_find_container]
+other = "Failed to find container {{.Container}}"
+
+[container.err_restart_container]
+other = "Failed to restart container {{.Container}}"
+
+[container.err_name_conflict]
+other = "Container name {{.Container}} is occupied by a non-Griffino container (ID: {{.ID}}), please resolve manually"
+
+[container.err_image_prep]
+other = "Image preparation failed for service {{.Service}}"
+
+[container.err_whitelist_check]
+other = "Image whitelist check failed"
+
+[container.err_image_not_official]
+other = "Main service image {{.Image}} not found locally and is not an official ghcr.io/griffinguard/ image. For dev plugins, please run docker build first."
+
+[container.err_image_not_allowed]
+other = "Auxiliary service image {{.Image}} is not in the community whitelist. Run \"docker pull {{.Image}}\" manually, or submit it to the Griffino plugin hub for review."
+
+[container.err_pull_failed]
+other = "Failed to pull image {{.Image}}"
+
+[container.err_create_container]
+other = "Failed to create container {{.Container}}"
+
+[container.err_start_container]
+other = "Failed to start container {{.Container}}"
+
+[container.err_stop_container]
+other = "Failed to stop container {{.Container}}"
+
+[container.err_remove_container]
+other = "Failed to remove container {{.Container}}"
+
+[container.err_list_containers]
+other = "Failed to list containers"
+
+[container.err_service_not_found]
+other = "Service {{.Service}} not found"
+
+[plugin.err_not_installed]
+other = "Plugin {{.ID}} is not installed"
+
+[plugin.err_is_dev_plugin]
+other = "Plugin {{.ID}} is a dev plugin, use griffino dev start"
+
+[plugin.err_not_dev_plugin]
+other = "Plugin {{.ID}} is not a dev plugin, use griffino start"
+
+[plugin.err_already_running]
+other = "Plugin {{.ID}} is already running"
+
+[plugin.err_not_running]
+other = "Plugin {{.ID}} is not running"
+
+[plugin.err_not_configured]
+other = "Plugin {{.ID}} is not configured, run griffino config first"
+
+[plugin.err_invalid_state_start]
+other = "Plugin {{.ID}} is in state {{.Status}}, cannot start"
+
+[plugin.err_invalid_state_stop]
+other = "Plugin {{.ID}} is in state {{.Status}}, no need to stop"
+
+[plugin.err_load_manifest]
+other = "Failed to load manifest"
+
+[plugin.err_rabbitmq_unreachable]
+other = "RabbitMQ is unreachable"
+
+[plugin.err_rabbitmq_sync]
+other = "Failed to sync RabbitMQ credentials"
+
+[plugin.err_rabbitmq_provision]
+other = "Failed to provision RabbitMQ resources"
+
+[plugin.err_redis_provision]
+other = "Failed to provision Redis ACL user"
+
+[plugin.err_network_create]
+other = "Failed to create network"
+
+[plugin.err_env_build]
+other = "Failed to build environment variables"
+
+[plugin.err_container_start]
+other = "Failed to start containers"
+
+[plugin.err_container_stop]
+other = "Failed to stop containers"
+
+[plugin.err_runtime_save]
+other = "Failed to save runtime info"
+
+[plugin.err_status_update]
+other = "Failed to update plugin status"
+
+[plugin.err_stop_before_uninstall]
+other = "Failed to stop plugin before uninstall"
+
+[plugin.err_delete_record]
+other = "Failed to delete plugin record"
+
+[plugin.err_read_status]
+other = "Failed to read plugin status"
+
+[system.msg_checking_network]
+other = "Checking system network..."
+
+[system.msg_checking_rabbitmq]
+other = "Checking RabbitMQ container..."
+
+[system.msg_checking_redis]
+other = "Checking Redis container..."
+
+[system.msg_all_services_ready]
+other = "All system services ready"
+
+[system.msg_redis_password_upgrade]
+other = "Generated Redis auth password (database upgrade)"
+
+[system.msg_redis_manual_delete]
+other = "Please manually remove the old Redis container and restart daemon:\n  docker rm -f {{.Name}}"
+
+[system.msg_config_generated]
+other = "System config generated:\n  RabbitMQ AMQP:       127.0.0.1:{{.MQPort}}\n  RabbitMQ Management: 127.0.0.1:{{.MQMgmtPort}}\n  Redis:               127.0.0.1:{{.RedisPort}}"
+
+[system.msg_rabbitmq_running]
+other = "RabbitMQ is running (127.0.0.1:{{.Port}})"
+
+[system.msg_starting_rabbitmq]
+other = "Starting RabbitMQ container (127.0.0.1:{{.Port}})..."
+
+[system.msg_redis_running]
+other = "Redis is running (127.0.0.1:{{.Port}})"
+
+[system.msg_starting_redis]
+other = "Starting Redis container (127.0.0.1:{{.Port}})..."
+
+[system.msg_network_join_failed]
+other = "Warning: container {{.Name}} failed to join system network: {{.Error}}"
+
+[system.msg_restarting_container]
+other = "Restarting stopped container {{.Name}}..."
+
+[system.msg_stopping_container]
+other = "Stopping system container {{.Name}}..."
+
+[system.msg_stop_container_failed]
+other = "Warning: failed to stop {{.Name}}: {{.Error}}"
+
+[system.msg_container_stopped]
+other = "{{.Name}} stopped"
+
+[system.err_state_not_initialized]
+other = "System state not initialized, please run griffino daemon first"
+
+[system.err_network_init]
+other = "Failed to initialize system network"
+
+[system.err_config_init]
+other = "Failed to initialize system config"
+
+[system.err_rabbitmq_start]
+other = "Failed to start RabbitMQ"
+
+[system.err_redis_start]
+other = "Failed to start Redis"
+
+[broker.err_generate_password]
+other = "Failed to generate RabbitMQ password"
+
+[broker.err_create_user]
+other = "Failed to create RabbitMQ user"
+
+[broker.err_set_permissions]
+other = "Failed to set RabbitMQ user permissions"
+
+[broker.err_declare_queue]
+other = "Failed to declare RabbitMQ queue"
+
+[broker.err_bind_queue]
+other = "Failed to bind RabbitMQ queue"
+
+[broker.err_delete_user]
+other = "Failed to delete RabbitMQ user"
+
+[broker.err_set_user_password]
+other = "Failed to set RabbitMQ user password"
+
+[api.msg_server_listening]
+other = "API server listening on http://localhost:{{.Addr}}"
+
+[devdaemon.msg_listening]
+other = "Dev socket started, listening on {{.Path}}"
+
+[health.msg_plugin_recovered]
+other = "Plugin {{.ID}} container has been recovered"
+
+[imagecheck.err_fetch_failed]
+other = "Failed to fetch image allowlist, please check your network connection: {{.Error}}"
+
+[imagecheck.err_parse_failed]
+other = "Failed to parse image allowlist: {{.Error}}"
+
+[imagecheck.err_unapproved]
+other = "The following images are not in the allowlist and installation was rejected: {{.Images}}\nTo use these images, please submit a review via the Griffino Plugin Center."

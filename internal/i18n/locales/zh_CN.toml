@@ -1,0 +1,500 @@
+[DaemonStarting]
+other = "正在启动 Griffino daemon..."
+
+[DaemonStarted]
+other = " Griffino daemon 已启动\n  RabbitMQ: {{ .RabbitMQ }}\n  Redis:    {{ .Redis }}"
+
+[DaemonStopping]
+other = "正在关闭 Griffino daemon..."
+
+[DaemonStopped]
+other = "Griffino daemon 已关闭"
+
+[DaemonAdminCreated]
+other = """
+─────────────────────────────────────────
+  首次启动，已自动创建管理员账号           
+  用户名: admin                           
+  密  码: {{ printf "%-31s" .Password }}
+  请登录后立即修改密码                     
+─────────────────────────────────────────"""
+
+[DaemonWaitingServices]
+other = "等待系统服务就绪..."
+
+[DaemonRabbitMQReady]
+other = "RabbitMQ 已就绪"
+
+[PluginInstalling]
+other = "正在安装插件 {{ .ID }}..."
+
+[PluginInstalled]
+other = " 插件 {{ .ID }} 安装完成"
+
+[PluginStarting]
+other = "正在启动插件 {{ .ID }}..."
+
+[PluginPulling]
+other = "正在拉取插件 {{ .ID }} 的镜像..."
+
+[PluginStarted]
+other = " 插件 {{ .ID }} 已启动"
+
+[PluginStopping]
+other = "正在停止插件 {{ .ID }}..."
+
+[PluginStopped]
+other = " 插件 {{ .ID }} 已停止"
+
+[PluginUninstalling]
+other = "正在卸载插件 {{ .ID }}..."
+
+[PluginUninstalled]
+other = " 插件 {{ .ID }} 已卸载"
+
+[PluginRestoring]
+other = "  正在恢复插件 {{ .ID }}..."
+
+[PluginRestored]
+other = "   插件 {{ .ID }} 已恢复"
+
+[PluginRestoreFailed]
+other = "  ⚠ 恢复插件 {{ .ID }} 失败: {{ .Error }}"
+
+[PluginInterrupted]
+other = "  插件 {{ .ID }} 上次启动被中断（阶段: {{ .Stage }}），已标记为失败"
+
+[StatusPendingSetup]
+other = "待配置"
+
+[StatusReady]
+other = "就绪"
+
+[StatusPulling]
+other = "拉取中"
+
+[StatusStarting]
+other = "启动中"
+
+[StatusRunning]
+other = "运行中"
+
+[StatusStopped]
+other = "已停止"
+
+[StatusFailed]
+other = "失败"
+
+[OperationSuccess]
+other = " 完成"
+
+[OperationFailed]
+other = "✗ 失败: {{ .Error }}"
+
+[NotRunningError]
+other = "Griffino daemon 未运行，请先执行: griffino daemon"
+
+[DevPluginInstalled]
+other = " Dev 插件 {{ .ID }} 已注册"
+
+[DevPluginUninstalled]
+other = " Dev 插件 {{ .ID }} 已卸载"
+
+[DevPluginStarted]
+other = " Dev 插件 {{ .ID }} 已启动"
+
+[DevPluginStopped]
+other = " Dev 插件 {{ .ID }} 已停止"
+
+[SystemRabbitMQ]
+other = "{{ .Container }} (127.0.0.1:{{ .Port }})"
+
+[SystemRedis]
+other = "{{ .Container }} (127.0.0.1:{{ .Port }})"
+
+[InstallLoadingManifest]
+other = "正在读取插件声明文件..."
+
+[InstallCheckingAllowlist]
+other = "正在检查镜像白名单..."
+
+[InstallSuccess]
+other = "\n 插件安装成功"
+
+[InstallSuccessID]
+other = "  ID:   {{ .ID }}"
+
+[InstallSuccessName]
+other = "  名称: {{ .Name }}"
+
+[InstallSuccessVersion]
+other = "  版本: {{ .Version }}"
+
+[InstallNextStep]
+other = "\n下一步: griffino config {{ .ID }}"
+
+[DevInstallSuccess]
+other = "\n Dev 插件安装成功\n  ID:   {{ .ID }}\n  名称: {{ .Name }}\n  版本: {{ .Version }}"
+
+[DevInstallNextStep]
+other = "\n下一步: griffino config {{ .ID }}  →  griffino dev start {{ .ID }}"
+
+[StartSuccess]
+other = "\n 插件 {{ .ID }} 启动成功"
+
+[StartSuccessNetwork]
+other = "  网络:   {{ .Network }}"
+
+[StartSuccessMQUser]
+other = "  MQ用户: {{ .MQUser }}"
+
+[StartSuccessContainers]
+other = "  容器:"
+
+[StartSuccessContainer]
+other = "    {{ printf \"%-30s\" .ServiceID }} → {{ .Container }}"
+
+[DevStartSuccess]
+other = "\n Dev 插件 {{ .ID }} 启动成功"
+
+[StopSuccess]
+other = "\n 插件 {{ .ID }} 已停止"
+
+[DevStopSuccess]
+other = "\n Dev 插件 {{ .ID }} 已停止"
+
+[DevUninstallSuccess]
+other = "\n Dev 插件 {{ .ID }} 已卸载"
+
+[DevUninstallForceSuccess]
+other = "\n Dev 插件 {{ .ID }} 已停止并卸载"
+
+[StatusNoPlugins]
+other = "尚未安装任何插件"
+
+[StatusHeader]
+other = "{{ printf \"%-40s\" \"插件 ID\" }} {{ printf \"%-15s\" \"状态\" }} 目录"
+
+[StatusHeaderSep]
+other = "{{ printf \"%-40s\" \"----------------------------------------\" }} {{ printf \"%-15s\" \"---------------\" }} --------------------"
+
+[StatusRuntimeInfo]
+other = "  {{ printf \"%-38s\" \"\" }} 网络: {{ .Network }}  MQ用户: {{ .MQUser }}"
+
+[StatusContainer]
+other = "  {{ printf \"%-38s\" \"\" }}   {{ printf \"%-28s\" .ServiceID }} → {{ .Container }}"
+
+[ConfigTitle]
+other = "正在为插件 {{ .ID }} 配置参数"
+
+[ConfigTip]
+other = "提示：直接回车可使用默认值，password 类型输入时不显示字符\n"
+
+[ConfigServiceHeader]
+other = "── 服务: {{ .ID }} ──"
+
+[ConfigParamDesc]
+other = "  说明: {{ .Desc }}"
+
+[ConfigParamRequired]
+other = " *必填"
+
+[ConfigSaved]
+other = " 配置已保存"
+
+[ConfigNextStep]
+other = "\n下一步: griffino start {{ .ID }}"
+
+[AdminPasswordReset]
+other = " admin 密码已重置"
+
+[AdminPasswordPrompt]
+other = "请输入新密码 (至少 8 位):"
+
+[DevDaemonNotRunning]
+other = "错误: griffino daemon 未运行，dev 命令需要 daemon 在线。"
+
+[DevDaemonStartHint]
+other = "请先执行: griffino daemon"
+
+[ErrInvalidPath]
+other = "无效的路径: {{ .Error }}"
+
+[ErrOpenDatabase]
+other = "打开数据库失败: {{ .Error }}"
+
+[ErrLoadManifest]
+other = "加载声明文件失败: {{ .Error }}"
+
+[ErrValidateManifest]
+other = "声明文件校验失败: {{ .Error }}"
+
+[ErrSavePlugin]
+other = "保存插件状态失败: {{ .Error }}"
+
+[ErrPluginAlreadyInstalled]
+other = "插件 {{ .ID }} 已安装（状态: {{ .Status }}），如需重新安装请先执行 uninstall"
+
+[ErrPluginNotInstalled]
+other = "插件 {{ .ID }} 未安装，请先执行 griffino install"
+
+[ErrInputParam]
+other = "输入参数 {{ .Key }} 失败: {{ .Error }}"
+
+[ErrSaveConfig]
+other = "保存配置失败: {{ .Error }}"
+
+[ErrParamRequired]
+other = "参数 {{ .Key }} 为必填项，不能为空"
+
+[ErrAdminNotFound]
+other = "admin 账号不存在"
+
+[ErrPasswordTooShort]
+other = "密码至少 8 位"
+
+[ErrUpdatePassword]
+other = "更新密码失败: {{ .Error }}"
+
+[ErrGetCurrentUser]
+other = "无法获取当前用户: {{ .Error }}"
+
+[ErrRootNotAllowed]
+other = "Griffino 不允许以 root 用户运行，请使用普通用户启动"
+
+[ErrRemoveContainer]
+other = "删除冲突容器失败: {{ .Error }}"
+
+[ErrContainerNameEmpty]
+other = "容器名不能为空"
+
+[container.starting_service]
+other = "正在启动服务 {{.Service}}..."
+
+[container.already_running]
+other = "容器 {{.Container}} 已在运行，跳过"
+
+[container.restarting]
+other = "重启已停止的容器 {{.Container}}"
+
+[container.stopping]
+other = "停止容器 {{.Container}}"
+
+[container.pulling_image]
+other = "正在拉取镜像 {{.Image}}..."
+
+[container.checking_image]
+other = "正在检查服务 {{.Service}} 的镜像 {{.Image}}..."
+
+[container.err_topo_sort]
+other = "解析服务依赖顺序失败"
+
+[container.err_find_container]
+other = "查找容器 {{.Container}} 失败"
+
+[container.err_restart_container]
+other = "重启容器 {{.Container}} 失败"
+
+[container.err_name_conflict]
+other = "容器名 {{.Container}} 已被非 Griffino 容器占用（ID: {{.ID}}），请手动处理后重试"
+
+[container.err_image_prep]
+other = "服务 {{.Service}} 镜像准备失败"
+
+[container.err_whitelist_check]
+other = "校验镜像白名单失败"
+
+[container.err_image_not_official]
+other = "主服务镜像 {{.Image}} 在本地不存在，且不是 ghcr.io/griffinguard/ 前缀的官方镜像，拒绝拉取。Dev 插件请先执行 docker build 构建本地镜像。"
+
+[container.err_image_not_allowed]
+other = "附属服务镜像 {{.Image}} 不在社区白名单中，拒绝拉取。请手动执行 \"docker pull {{.Image}}\" 后重试，或通过 Griffino 插件中心提交审核以加入白名单。"
+
+[container.err_pull_failed]
+other = "拉取镜像 {{.Image}} 失败"
+
+[container.err_create_container]
+other = "创建容器 {{.Container}} 失败"
+
+[container.err_start_container]
+other = "启动容器 {{.Container}} 失败"
+
+[container.err_stop_container]
+other = "停止容器 {{.Container}} 失败"
+
+[container.err_remove_container]
+other = "删除容器 {{.Container}} 失败"
+
+[container.err_list_containers]
+other = "查找容器失败"
+
+[container.err_service_not_found]
+other = "服务 {{.Service}} 不存在"
+
+[plugin.err_not_installed]
+other = "插件 {{.ID}} 未安装"
+
+[plugin.err_is_dev_plugin]
+other = "插件 {{.ID}} 是开发者插件，请通过 griffino dev start 启动"
+
+[plugin.err_not_dev_plugin]
+other = "插件 {{.ID}} 不是开发者插件，请使用 griffino start 启动"
+
+[plugin.err_already_running]
+other = "插件 {{.ID}} 已在运行中"
+
+[plugin.err_not_running]
+other = "插件 {{.ID}} 当前未运行"
+
+[plugin.err_not_configured]
+other = "插件 {{.ID}} 尚未配置，请先执行 griffino config"
+
+[plugin.err_invalid_state_start]
+other = "插件 {{.ID}} 当前状态为 {{.Status}}，无法启动"
+
+[plugin.err_invalid_state_stop]
+other = "插件 {{.ID}} 当前状态为 {{.Status}}，无需停止"
+
+[plugin.err_load_manifest]
+other = "加载声明文件失败"
+
+[plugin.err_rabbitmq_unreachable]
+other = "RabbitMQ 不可达"
+
+[plugin.err_rabbitmq_sync]
+other = "同步 RabbitMQ 凭据失败"
+
+[plugin.err_rabbitmq_provision]
+other = "创建 RabbitMQ 资源失败"
+
+[plugin.err_redis_provision]
+other = "创建 Redis ACL 用户失败"
+
+[plugin.err_network_create]
+other = "创建网络失败"
+
+[plugin.err_env_build]
+other = "组装环境变量失败"
+
+[plugin.err_container_start]
+other = "启动容器失败"
+
+[plugin.err_container_stop]
+other = "停止容器失败"
+
+[plugin.err_runtime_save]
+other = "保存运行时信息失败"
+
+[plugin.err_status_update]
+other = "更新插件状态失败"
+
+[plugin.err_stop_before_uninstall]
+other = "卸载前停止插件失败"
+
+[plugin.err_delete_record]
+other = "删除插件记录失败"
+
+[plugin.err_read_status]
+other = "读取插件状态失败"
+
+[system.msg_checking_network]
+other = "检查系统网络..."
+
+[system.msg_checking_rabbitmq]
+other = "检查 RabbitMQ 容器..."
+
+[system.msg_checking_redis]
+other = "检查 Redis 容器..."
+
+[system.msg_all_services_ready]
+other = "所有系统服务就绪"
+
+[system.msg_redis_password_upgrade]
+other = "已为 Redis 生成认证密码（数据库升级）"
+
+[system.msg_redis_manual_delete]
+other = "请手动删除旧的 Redis 容器后重启 daemon：\n  docker rm -f {{.Name}}"
+
+[system.msg_config_generated]
+other = "系统配置已生成：\n  RabbitMQ AMQP:       127.0.0.1:{{.MQPort}}\n  RabbitMQ Management: 127.0.0.1:{{.MQMgmtPort}}\n  Redis:               127.0.0.1:{{.RedisPort}}"
+
+[system.msg_rabbitmq_running]
+other = "RabbitMQ 已在运行 (127.0.0.1:{{.Port}})"
+
+[system.msg_starting_rabbitmq]
+other = "启动 RabbitMQ 容器 (127.0.0.1:{{.Port}})..."
+
+[system.msg_redis_running]
+other = "Redis 已在运行 (127.0.0.1:{{.Port}})"
+
+[system.msg_starting_redis]
+other = "启动 Redis 容器 (127.0.0.1:{{.Port}})..."
+
+[system.msg_network_join_failed]
+other = "警告：容器 {{.Name}} 加入系统网络失败：{{.Error}}"
+
+[system.msg_restarting_container]
+other = "重启已停止的容器 {{.Name}}..."
+
+[system.msg_stopping_container]
+other = "停止系统容器 {{.Name}}..."
+
+[system.msg_stop_container_failed]
+other = "警告：停止 {{.Name}} 失败：{{.Error}}"
+
+[system.msg_container_stopped]
+other = "{{.Name}} 已停止"
+
+[system.err_state_not_initialized]
+other = "系统状态未初始化，请先运行 griffino daemon"
+
+[system.err_network_init]
+other = "初始化系统网络失败"
+
+[system.err_config_init]
+other = "初始化系统配置失败"
+
+[system.err_rabbitmq_start]
+other = "启动 RabbitMQ 失败"
+
+[system.err_redis_start]
+other = "启动 Redis 失败"
+
+[broker.err_generate_password]
+other = "生成 RabbitMQ 密码失败"
+
+[broker.err_create_user]
+other = "创建 RabbitMQ 用户失败"
+
+[broker.err_set_permissions]
+other = "设置 RabbitMQ 用户权限失败"
+
+[broker.err_declare_queue]
+other = "声明 RabbitMQ 队列失败"
+
+[broker.err_bind_queue]
+other = "绑定 RabbitMQ 队列失败"
+
+[broker.err_delete_user]
+other = "删除 RabbitMQ 用户失败"
+
+[broker.err_set_user_password]
+other = "设置 RabbitMQ 用户密码失败"
+
+[api.msg_server_listening]
+other = "API 服务已启动，监听 http://localhost:{{.Addr}}"
+
+[devdaemon.msg_listening]
+other = "Dev socket 已启动，监听 {{.Path}}"
+
+[health.msg_plugin_recovered]
+other = "插件 {{.ID}} 容器已恢复运行"
+
+[imagecheck.err_fetch_failed]
+other = "无法拉取镜像白名单，请检查网络连接后重试: {{.Error}}"
+
+[imagecheck.err_parse_failed]
+other = "解析白名单失败: {{.Error}}"
+
+[imagecheck.err_unapproved]
+other = "以下镜像不在白名单中，拒绝安装: {{.Images}}\n如需使用这些镜像，请通过 Griffino 插件中心提交审核。"

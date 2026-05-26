@@ -1,0 +1,139 @@
+{
+  "griffinoPluginManifestVersion": "1.0",
+  "id": "cc.griffino.telegram_bot",
+  "pluginVersion": "0.1.0",
+  "name": {
+    "default": "Telegram Bot"
+  },
+  "description": {
+    "default": "A Telegram Bot plugin built on the Griffino Python SDK. It supports outbound notifications and routes Telegram text messages to Griffino capabilities."
+  },
+  "capabilities": [
+    {
+      "id": "send_notification",
+      "role": "provider",
+      "type": "messaging.notification.send",
+      "name": {
+        "default": "Send Notification"
+      },
+      "description": {
+        "default": "Sends a text message to a Telegram chat bound to a Griffino user."
+      },
+      "entryPoint": {
+        "type": "rabbitmq_topic",
+        "details": {
+          "requestTopicPattern": "invoke.cc.griffino.telegram_bot.send_notification.v1",
+          "responseTopicPatternHint": "event.cc.griffino.telegram_bot.notification_result.v1"
+        }
+      },
+      "standardInterfaceRef": "griffino.interfaces.messaging.notify@1.0.0",
+      "defaultTimeoutMilliseconds": 30000
+    },
+    {
+      "id": "ai_chat_model",
+      "role": "consumer",
+      "type": "ai.chat.model",
+      "consumesCapabilityType": "ai.chat.model",
+      "name": {
+        "default": "AI Chat Model"
+      },
+      "description": {
+        "default": "Consumes an AI chat model capability to reply to Telegram text messages."
+      },
+      "optional": false,
+      "slots": [
+        {
+          "id": "chat",
+          "name": {
+            "default": "Chat"
+          },
+          "description": {
+            "default": "Primary chat completion slot."
+          }
+        }
+      ]
+    },
+    {
+      "id": "video_download",
+      "role": "consumer",
+      "type": "media.video.download",
+      "consumesCapabilityType": "media.video.download",
+      "name": {
+        "default": "Video Downloader"
+      },
+      "description": {
+        "default": "Consumes a video download capability for future Telegram delivery workflows."
+      },
+      "optional": true,
+      "slots": [
+        {
+          "id": "video_download",
+          "name": {
+            "default": "Video Download"
+          },
+          "description": {
+            "default": "Primary media.video.download slot."
+          }
+        }
+      ]
+    },
+    {
+      "id": "link_parse",
+      "role": "consumer",
+      "type": "web.link.parse",
+      "consumesCapabilityType": "web.link.parse",
+      "name": {
+        "default": "Link Parser"
+      },
+      "description": {
+        "default": "Consumes a link parsing capability for URL previews."
+      },
+      "optional": true,
+      "slots": [
+        {
+          "id": "link_parse",
+          "name": {
+            "default": "Link Parse"
+          },
+          "description": {
+            "default": "Primary web.link.parse slot."
+          }
+        }
+      ]
+    }
+  ],
+  "author": "MorCherlf",
+  "site": "https://github.com/MorCherlf/Griffino-Telegram-Bot",
+  "internationalization": {
+    "defaultLanguage": "zh-CN",
+    "supportedLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
+    "localizationFiles": {
+      "zh-CN": "i18n/zh_CN.json",
+      "en-US": "i18n/en_US.json"
+    }
+  },
+  "dependencies": {
+    "mainSystemVersion": ">=0.1.0",
+    "requiredPlugins": []
+  },
+  "permissionsRequested": [
+    {
+      "name": "network.outbound.internet",
+      "description": {
+        "default": "Requires internet access to connect to Telegram servers."
+      },
+      "optional": false
+    }
+  ],
+  "configurationFiles": {
+    "bootConfig": "config.boot.json",
+    "runtimeBoot": "plugin.boot.yml",
+    "userConfig": "config.user.json"
+  },
+  "pluginSchemaType": "general_purpose_plugin",
+  "license": "MIT",
+  "icon": "assets/icon.png"
+}

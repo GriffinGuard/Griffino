@@ -1,0 +1,64 @@
+{
+  "griffinoPluginManifestVersion": "1.0",
+  "id": "com.morcherlf.deepseek",
+  "pluginVersion": "0.1.0",
+  "name": {
+    "default": "DeepSeek AI"
+  },
+  "description": {
+    "default": "Provides AI chat model capability via the DeepSeek official API."
+  },
+  "capabilities": [
+    {
+      "id": "ai_chat_model",
+      "role": "provider",
+      "type": "ai.chat.model",
+      "name": {
+        "default": "AI Chat Model"
+      },
+      "description": {
+        "default": "Provides AI chat completion via DeepSeek API."
+      },
+      "entryPoint": {
+        "type": "rabbitmq_topic",
+        "details": {
+          "requestTopicPattern": "invoke.com.morcherlf.deepseek.ai_chat_model.v1"
+        }
+      },
+      "standardInterfaceRef": "griffino.interfaces.ai.chat@1.0.0",
+      "defaultTimeoutMilliseconds": 60000
+    }
+  ],
+  "author": "MorCherlf",
+  "site": "https://github.com/MorCherlf/Griffino-DeepSeek-Plugin",
+  "tutorial": "https://platform.deepseek.com/api-docs",
+  "internationalization": {
+    "defaultLanguage": "zh-CN",
+    "supportedLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
+    "localizationFiles": {
+      "zh-CN": "i18n/zh_CN.json",
+      "en-US": "i18n/en_US.json"
+    }
+  },
+  "dependencies": {
+    "mainSystemVersion": ">=0.1.0",
+    "requiredPlugins": []
+  },
+  "permissionsRequested": [
+    {
+      "name": "network.outbound.internet",
+      "description": {
+        "default": "Requires internet access to call the DeepSeek API."
+      },
+      "optional": false
+    }
+  ],
+  "configurationFiles": {
+    "bootConfig": "config.boot.json",
+    "runtimeBoot": "plugin.boot.yml",
+    "userConfig": "config.user.json"
+  }
+}

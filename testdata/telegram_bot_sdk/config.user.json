@@ -1,0 +1,17 @@
+{
+  "GriffinoPluginConfigVersion": "1.0",
+  "pluginId": "cc.griffino.telegram_bot",
+  "pluginVersion": "0.1.0",
+  "name": "Telegram Bot",
+  "site": "https://github.com/MorCherlf/Griffino-Telegram-Bot",
+  "configs": [
+    {
+      "key": "AUTO_PARSE_LINKS",
+      "type": "boolean",
+      "name": "Auto Parse Links",
+      "description": "Whether plain text URLs should first be routed to web.link.parse.",
+      "optional": true,
+      "default": true
+    }
+  ]
+}

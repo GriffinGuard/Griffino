@@ -1,0 +1,71 @@
+{
+  "$schema": "./config.boot.schema.json",
+  "GriffinoPluginConfigVersion": "1.0",
+  "pluginId": "cc.griffino.telegram_bot",
+  "pluginVersion": "0.1.0",
+  "name": "Telegram Bot",
+  "site": "https://github.com/MorCherlf/Griffino-Telegram-Bot",
+  "services": [
+    {
+      "id": "telegram-bot-api",
+      "configs": [
+        {
+          "key": "TELEGRAM_API_ID",
+          "name": "Telegram API ID",
+          "description": "从 https://my.telegram.org 获取的 API ID，用于运行本地 Bot API 服务。",
+          "type": "string",
+          "optional": false,
+          "group": "Telegram 凭据"
+        },
+        {
+          "key": "TELEGRAM_API_HASH",
+          "name": "Telegram API Hash",
+          "description": "从 https://my.telegram.org 获取的 API Hash，与 API ID 配套使用。",
+          "type": "password",
+          "optional": false,
+          "group": "Telegram 凭据"
+        }
+      ]
+    },
+    {
+      "id": "bot-app",
+      "configs": [
+        {
+          "key": "TELEGRAM_BOT_TOKEN",
+          "name": "Bot Token",
+          "description": "从 @BotFather 获取的 Bot Token。",
+          "type": "password",
+          "optional": false,
+          "group": "Telegram 凭据"
+        },
+        {
+          "key": "BOT_API_URL",
+          "name": "Telegram Bot API URL",
+          "description": "可选，自建 Telegram Bot API 服务地址；留空时使用官方 API。",
+          "type": "string",
+          "optional": true,
+          "default": "",
+          "group": "Runtime"
+        },
+        {
+          "key": "TG_READ_TIMEOUT",
+          "name": "Telegram Read Timeout",
+          "description": "Telegram 读超时，单位秒。",
+          "type": "float",
+          "optional": true,
+          "default": 30.0,
+          "group": "Runtime"
+        },
+        {
+          "key": "TG_WRITE_TIMEOUT",
+          "name": "Telegram Write Timeout",
+          "description": "Telegram 写超时，单位秒。",
+          "type": "float",
+          "optional": true,
+          "default": 30.0,
+          "group": "Runtime"
+        }
+      ]
+    }
+  ]
+}

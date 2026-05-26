@@ -1,0 +1,41 @@
+# Compiled binary (root level only)
+/griffino
+
+# Go binaries and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.so.*
+*.dylib
+*.test
+*.out
+
+# Dependencies
+vendor/
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+build/
+
+# Griffino local config (may contain credentials)
+.griffino/
+
+# Logs
+*.log
+logs/

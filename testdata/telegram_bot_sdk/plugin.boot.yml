@@ -1,0 +1,53 @@
+pluginBootSpecVersion: "1.0"
+pluginId: "cc.griffino.telegram_bot"
+pluginVersion: "0.1.0"
+mainServiceId: "bot-app"
+
+services:
+  telegram-bot-api:
+    image: "aiogram/telegram-bot-api:latest"
+    environment:
+      - "TELEGRAM_API_ID"
+      - "TELEGRAM_API_HASH"
+      - "TELEGRAM_LOCAL=1"
+      - "TELEGRAM_HTTP_IP_ADDRESS=0.0.0.0"
+    ports:
+      - name: "http-api"
+        internal: 8081
+        protocol: "tcp"
+    volumes:
+      - name: "telegram_api_data"
+        mount_path: "/var/lib/telegram-bot-api"
+
+  redis:
+    image: "redis:7-alpine"
+    command: "redis-server --save 60 1 --loglevel warning"
+    volumes:
+      - name: "redis_data"
+        mount_path: "/data"
+
+  bot-app:
+    build_instructions:
+      context: "."
+      dockerfile: "Dockerfile"
+    image: "griffino-dev/telegram-bot:local-latest"
+    depends_on:
+      - "redis"
+      - "telegram-bot-api"
+    environment:
+      - "GRIFFINO_PLUGIN_ID=cc.griffino.telegram_bot"
+      - "TELEGRAM_BOT_TOKEN"
+      - "TG_READ_TIMEOUT"
+      - "TG_WRITE_TIMEOUT"
+      - "RABBITMQ_HOST={{system.rabbitmq.host}}"
+      - "RABBITMQ_PORT={{system.rabbitmq.port}}"
+      - "RABBITMQ_USER={{system.rabbitmq.user}}"
+      - "RABBITMQ_PASSWORD={{system.rabbitmq.password}}"
+      - "BOT_API_URL=http://{{services.telegram-bot-api.name}}:{{services.telegram-bot-api.ports.http-api.internal}}"
+      - "REDIS_HOST={{services.redis.name}}"
+      - "REDIS_PORT=6379"
+      - "TZ=Asia/Shanghai"
+      - "PYTHONUNBUFFERED=1"
+    volumes:
+      - name: "media_data"
+        mount_path: "/app/media"

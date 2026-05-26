@@ -1,0 +1,73 @@
+{
+  "GriffinoPluginConfigVersion": "1.0",
+  "pluginId": "com.morcherlf.deepseek",
+  "pluginVersion": "0.1.0",
+  "name": "DeepSeek AI",
+  "site": "https://github.com/MorCherlf/Griffino-DeepSeek-Plugin",
+  "services": [
+    {
+      "id": "deepseek-service",
+      "configs": [
+        {
+          "key": "DEEPSEEK_API_KEY",
+          "type": "password",
+          "name": "DeepSeek API Key",
+          "description": "DeepSeek platform API key.",
+          "optional": false,
+          "group": "API Configuration"
+        },
+        {
+          "key": "DEEPSEEK_MODEL",
+          "type": "options",
+          "name": "Default Model",
+          "description": "DeepSeek model used for chat requests.",
+          "optional": false,
+          "default": "deepseek-chat",
+          "group": "API Configuration",
+          "values": [
+            {
+              "value": "deepseek-chat",
+              "display": "DeepSeek-V3 (Recommended)"
+            },
+            {
+              "value": "deepseek-reasoner",
+              "display": "DeepSeek-R1 (Reasoning)"
+            }
+          ]
+        },
+        {
+          "key": "DEEPSEEK_BASE_URL",
+          "type": "string",
+          "name": "API Base URL",
+          "description": "Base URL for DeepSeek compatible APIs.",
+          "optional": true,
+          "default": "https://api.deepseek.com",
+          "group": "API Configuration"
+        },
+        {
+          "key": "MAX_TOKENS",
+          "type": "int",
+          "name": "Max Tokens",
+          "description": "Maximum completion tokens per request.",
+          "optional": true,
+          "default": 4096,
+          "validation": {
+            "minimum": 256,
+            "maximum": 8192
+          },
+          "group": "Model Parameters"
+        },
+        {
+          "key": "SYSTEM_PROMPT",
+          "type": "string",
+          "name": "System Prompt",
+          "description": "Global system prompt applied to all users.",
+          "optional": true,
+          "default": "You are a helpful assistant.",
+          "group": "Model Parameters"
+        }
+      ]
+    }
+  ],
+  "tutorial": "https://platform.deepseek.com/api-docs"
+}

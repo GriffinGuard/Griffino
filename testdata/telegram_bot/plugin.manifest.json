@@ -1,0 +1,153 @@
+{
+  "griffinoPluginManifestVersion": "1.0",
+  "pluginSchemaType": "general_purpose_plugin",
+
+  "id": "cc.griffino.telegram_bot",
+  "version": "0.1.0",
+  "releaseDate": "2025-02-23",
+
+  "name": {
+    "default": "Telegram Bot",
+    "_i18n_key": "plugin.name"
+  },
+  "description": {
+    "default": "A Telegram Bot plugin that supports message push notifications via RabbitMQ, with local Telegram Bot API server and Redis for state management.",
+    "_i18n_key": "plugin.description"
+  },
+  "author": "YourName",
+  "site": "https://github.com/yourname/telegram-bot-plugin",
+  "icon": "assets/icon.png",
+  "license": "MIT",
+
+  "internationalization": {
+    "defaultLanguage": "zh-CN",
+    "supportedLanguages": ["zh-CN", "en-US"],
+    "localizationFiles": {
+      "zh-CN": "i18n/zh_CN.json",
+      "en-US": "i18n/en_US.json"
+    }
+  },
+
+  "dependencies": {
+    "mainSystemVersion": ">=0.1.0",
+    "requiredPlugins": []
+  },
+
+  "permissionsRequested": [
+    {
+      "name": "network.outbound.internet",
+      "description": {
+        "default": "Requires internet access to connect to Telegram servers.",
+        "_i18n_key": "permission.desc.network_outbound"
+      },
+      "optional": false
+    }
+  ],
+
+  "configurationFiles": {
+    "bootConfig": "config.boot.json",
+    "runtimeBoot": "plugin.boot.yml",
+    "userConfig":  "config.user.json"
+  },
+
+  "capabilities": [
+    {
+      "id": "send_notification",
+      "role": "provider",
+      "name": {
+        "default": "Send Notification",
+        "_i18n_key": "capability.send_notification.name"
+      },
+      "description": {
+        "default": "Sends a text message to a specified Telegram User ID via the bot.",
+        "_i18n_key": "capability.send_notification.description"
+      },
+      "type": "messaging.notification.send",
+      "standardInterfaceRef": "griffino.interfaces.messaging.notify@1.0.0",
+      "entryPoint": {
+        "type": "rabbitmq_topic",
+        "details": {
+          "requestTopicPattern": "invoke.cc.griffino.telegram_bot.send_notification.v1",
+          "responseTopicPatternHint": "event.cc.griffino.telegram_bot.notification_result.v1"
+        }
+      },
+      "inputSchemaRef": "schemas/send_notification_input_v1.json",
+      "outputSchemaRef": "schemas/send_notification_output_v1.json",
+      "defaultTimeoutMilliseconds": 30000
+    },
+    {
+      "id": "ai_chat_model",
+      "role": "consumer",
+      "name": {
+        "default": "AI Chat Model",
+        "_i18n_key": "capability.ai_chat_model.name"
+      },
+      "description": {
+        "default": "Consumes an AI chat model capability to handle conversational requests from users.",
+        "_i18n_key": "capability.ai_chat_model.description"
+      },
+      "type": "ai.chat.model",
+      "consumesCapabilityType": "ai.chat.model",
+      "standardInterfaceRef": "griffino.interfaces.ai.chat@1.0.0",
+      "entryPoint": {
+        "type": "rabbitmq_topic",
+        "details": {
+          "requestTopicPattern": "invoke.griffino.router.{{userId}}.ai_chat_model.v1"
+        }
+      },
+      "inputSchemaRef": "schemas/ai_chat_request_v1.json",
+      "outputSchemaRef": "schemas/ai_chat_response_v1.json",
+      "defaultTimeoutMilliseconds": 60000
+    },
+    {
+      "id": "video_download",
+      "role": "consumer",
+      "name": {
+        "default": "Video Downloader",
+        "_i18n_key": "capability.video_download.name"
+      },
+      "description": {
+        "default": "Consumes a video download capability to fetch and deliver video content.",
+        "_i18n_key": "capability.video_download.description"
+      },
+      "type": "media.video.download",
+      "consumesCapabilityType": "media.video.download",
+      "standardInterfaceRef": "griffino.interfaces.media.video.download@1.0.0",
+      "entryPoint": {
+        "type": "rabbitmq_topic",
+        "details": {
+          "requestTopicPattern": "invoke.griffino.router.{{userId}}.video_download.v1"
+        }
+      },
+      "inputSchemaRef": "schemas/video_download_request_v1.json",
+      "outputSchemaRef": "schemas/video_download_response_v1.json",
+      "defaultTimeoutMilliseconds": 120000,
+      "optional": true
+    },
+    {
+      "id": "link_parse",
+      "role": "consumer",
+      "name": {
+        "default": "Link Parser",
+        "_i18n_key": "capability.link_parse.name"
+      },
+      "description": {
+        "default": "Consumes a link parsing capability to extract metadata from URLs.",
+        "_i18n_key": "capability.link_parse.description"
+      },
+      "type": "web.link.parse",
+      "consumesCapabilityType": "web.link.parse",
+      "standardInterfaceRef": "griffino.interfaces.web.link.parse@1.0.0",
+      "entryPoint": {
+        "type": "rabbitmq_topic",
+        "details": {
+          "requestTopicPattern": "invoke.griffino.router.{{userId}}.link_parse.v1"
+        }
+      },
+      "inputSchemaRef": "schemas/link_parse_request_v1.json",
+      "outputSchemaRef": "schemas/link_parse_response_v1.json",
+      "defaultTimeoutMilliseconds": 15000,
+      "optional": true
+    }
+  ]
+}

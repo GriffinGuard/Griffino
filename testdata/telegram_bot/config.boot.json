@@ -1,0 +1,43 @@
+{
+  "$schema": "./config.boot.schema.json",
+  "GriffinoPluginConfigVersion": "1.0",
+  "pluginId": "cc.griffino.telegram_bot",
+  "name": "Telegram Bot",
+  "site": "https://github.com/yourname/telegram-bot-plugin",
+  "services": [
+    {
+      "id": "telegram-bot-api",
+      "configs": [
+        {
+          "key": "TELEGRAM_API_ID",
+          "name": "Telegram API ID",
+          "description": "从 https://my.telegram.org 获取的 API ID，用于运行本地 Bot API 服务器。",
+          "type": "string",
+          "optional": false,
+          "group": "Telegram 凭据"
+        },
+        {
+          "key": "TELEGRAM_API_HASH",
+          "name": "Telegram API Hash",
+          "description": "从 https://my.telegram.org 获取的 API Hash，与 API ID 配套使用。",
+          "type": "password",
+          "optional": false,
+          "group": "Telegram 凭据"
+        }
+      ]
+    },
+    {
+      "id": "bot-app",
+      "configs": [
+        {
+          "key": "TELEGRAM_BOT_TOKEN",
+          "name": "Bot Token",
+          "description": "从 @BotFather 获取的 Bot Token，格式为 123456789:AAFxxxxxx，每个 Bot 独立一个。",
+          "type": "password",
+          "optional": false,
+          "group": "Telegram 凭据"
+        }
+      ]
+    }
+  ]
+}
