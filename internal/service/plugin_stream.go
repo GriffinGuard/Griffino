@@ -28,8 +28,8 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
-// streamPluginLogs 持续读取单个容器的日志，直到 ctx 取消或容器退出。
-// 由 startCore 成功后以 goroutine 方式调用。
+// streamPluginLogs continuously reads a single container's logs until ctx is cancelled or the container exits.
+// Called as a goroutine after startCore succeeds / 持续读取单个容器日志直到 ctx 取消或容器退出，startCore 成功后以 goroutine 方式调用.
 func streamPluginLogs(ctx context.Context, dockerCli *client.Client, pluginID, serviceID, containerName string) {
 	pl, err := logger.GetPluginLogger(pluginID)
 	if err != nil {
@@ -50,7 +50,7 @@ func streamPluginLogs(ctx context.Context, dockerCli *client.Client, pluginID, s
 	}
 	defer rc.Close()
 
-	// Docker 的 stdout/stderr 是多路复用在同一个流里的，需要用 stdcopy 分离
+	// Docker multiplexes stdout/stderr in the same stream; use stdcopy to demultiplex / Docker 的 stdout/stderr 多路复用在同一流里，需要用 stdcopy 分离
 	pr, pw := io.Pipe()
 	errPr, errPw := io.Pipe()
 
@@ -60,13 +60,13 @@ func streamPluginLogs(ctx context.Context, dockerCli *client.Client, pluginID, s
 		errPw.Close()
 	}()
 
-	// 分别处理 stdout 和 stderr
+	// Handle stdout and stderr separately / 分别处理 stdout 和 stderr
 	go processLines(ctx, pl, pluginID, serviceID, errPr, true)
 	processLines(ctx, pl, pluginID, serviceID, pr, false)
 }
 
-// processLines 逐行读取流，写入对应日志文件。
-// isStderr=true 时无前缀的行默认视为 WARN。
+// processLines reads the stream line by line and writes to the corresponding log file.
+// When isStderr=true, lines without a prefix are treated as WARN-level / 逐行读取流写入对应日志文件，isStderr=true 时无前缀的行默认视为 WARN.
 func processLines(ctx context.Context, pl *logger.PluginLogger, pluginID, serviceID string, r io.Reader, isStderr bool) {
 	buf := make([]byte, 0, 4096)
 	tmp := make([]byte, 256)
@@ -97,7 +97,7 @@ func processLines(ctx context.Context, pl *logger.PluginLogger, pluginID, servic
 	}
 }
 
-// writeLine 解析日志级别并写入对应文件。
+// writeLine parses the log level and writes to the corresponding file / 解析日志级别并写入对应文件.
 func writeLine(pl *logger.PluginLogger, pluginID, serviceID, line string, isStderr bool) {
 	ts := time.Now().UTC().Format(time.RFC3339)
 
@@ -105,7 +105,7 @@ func writeLine(pl *logger.PluginLogger, pluginID, serviceID, line string, isStde
 	if isStderr {
 		level = "WARN"
 	}
-	// 识别插件 SDK 约定的前缀
+	// Recognize the plugin SDK's conventional prefix / 识别插件 SDK 约定的前缀
 	upper := strings.ToUpper(line)
 	if strings.HasPrefix(upper, "[INFO]") {
 		level = "INFO"

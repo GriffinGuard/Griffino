@@ -24,29 +24,29 @@ import (
 	"gopkg.in/lumberjack.v2"
 )
 
-// pluginLoggers 全局缓存，pluginID → *PluginLogger
-// lumberjack 本身线程安全，map 访问用 mu 保护
+// pluginLoggers global cache, pluginID → *PluginLogger / 全局缓存，pluginID → *PluginLogger
+// lumberjack is goroutine-safe; map access is protected by mu / lumberjack 本身线程安全，map 访问用 mu 保护
 var (
 	pluginLogMu      sync.Mutex
 	pluginLoggers    = make(map[string]*PluginLogger)
-	globalPluginErrW io.Writer // 指向全局 plugin-error.log
-	pluginLogDir     string    // 插件日志根目录，Init 时设置
+	globalPluginErrW io.Writer // Points to the global plugin-error.log / 指向全局 plugin-error.log
+	pluginLogDir     string    // Plugin log root directory, set during Init / 插件日志根目录，Init 时设置
 )
 
-// PluginLogger 持有单个插件的两个日志 writer
+// PluginLogger holds two log writers for a single plugin / 持有单个插件的两个日志 writer
 type PluginLogger struct {
-	All  io.Writer // plugin.log（全量）
-	Err  io.Writer // plugin-error.log（仅 Warn/Error）
+	All io.Writer // plugin.log (all levels) / plugin.log（全量）
+	Err io.Writer // plugin-error.log (Warn/Error only) / plugin-error.log（仅 Warn/Error）
 }
 
-// initPluginLogDir 由 logger.Init 调用，设置插件日志目录和全局 writer
+// initPluginLogDir is called by logger.Init to set the plugin log directory and global writer / 由 logger.Init 调用，设置插件日志目录和全局 writer
 func initPluginLogDir(logDir string, pluginErrW io.Writer) {
 	pluginLogDir = filepath.Join(logDir, "plugins")
 	globalPluginErrW = pluginErrW
 }
 
-// GetPluginLogger 获取或创建插件的日志 writer
-// 多次调用同一 pluginID 返回同一实例
+// GetPluginLogger gets or creates a log writer for the plugin.
+// Multiple calls with the same pluginID return the same instance / 获取或创建插件的日志 writer，同一 pluginID 返回同一实例
 func GetPluginLogger(pluginID string) (*PluginLogger, error) {
 	pluginLogMu.Lock()
 	defer pluginLogMu.Unlock()
@@ -78,14 +78,14 @@ func GetPluginLogger(pluginID string) (*PluginLogger, error) {
 	return l, nil
 }
 
-// ClosePluginLogger 插件停止时从缓存中移除（lumberjack 无需显式 Close）
+// ClosePluginLogger removes the logger from cache when a plugin stops (lumberjack doesn't need an explicit Close) / 插件停止时从缓存中移除，lumberjack 无需显式 Close
 func ClosePluginLogger(pluginID string) {
 	pluginLogMu.Lock()
 	defer pluginLogMu.Unlock()
 	delete(pluginLoggers, pluginID)
 }
 
-// GlobalPluginErrWriter 返回全局 plugin-error.log 的 writer
+// GlobalPluginErrWriter returns the writer for the global plugin-error.log / 返回全局 plugin-error.log 的 writer
 func GlobalPluginErrWriter() io.Writer {
 	return globalPluginErrW
 }

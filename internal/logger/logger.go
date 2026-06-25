@@ -24,24 +24,25 @@ import (
 )
 
 const (
-	// 日志文件大小上限（MB）
-	maxSizeMB = 10
+	// Max log file size in MB / 日志文件大小上限（MB）
+	maxSizeMB      = 10
 	maxSizeErrorMB = 5
 
-	// 保留的旧日志文件数量
+	// Number of old log files to keep / 保留的旧日志文件数量
 	maxBackups = 3
 )
 
-// pluginIDKey 是 slog context 里 pluginID 的 key
+// pluginIDKey is the slog context key for pluginID / slog context 里 pluginID 的 key
 type contextKey string
+
 const pluginIDKey contextKey = "pluginID"
 
-// WithPluginID 在 context 里注入 pluginID，供 logger 路由使用
+// WithPluginID injects pluginID into the context for logger routing / 在 context 里注入 pluginID，供 logger 路由使用
 func WithPluginID(ctx context.Context, pluginID string) context.Context {
 	return context.WithValue(ctx, pluginIDKey, pluginID)
 }
 
-// PluginIDFromContext 从 context 提取 pluginID
+// PluginIDFromContext extracts pluginID from the context / 从 context 提取 pluginID
 func PluginIDFromContext(ctx context.Context) string {
 	if v, ok := ctx.Value(pluginIDKey).(string); ok {
 		return v
@@ -49,9 +50,9 @@ func PluginIDFromContext(ctx context.Context) string {
 	return ""
 }
 
-// Init 初始化全局 slog logger。
-// devMode=true 时只输出到 stderr + griffino-dev.log，不写其他文件。
-// logDir 是日志目录，通常是 ~/.griffino/logs/
+// Init initializes the global slog logger.
+// devMode=true outputs only to stderr + griffino-dev.log, no other files.
+// logDir is the log directory, typically ~/.griffino/logs/ / 初始化全局 slog logger，devMode 时只输出到 stderr + griffino-dev.log，logDir 是日志目录
 func Init(logDir string, devMode bool) error {
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		return err
@@ -60,7 +61,7 @@ func Init(logDir string, devMode bool) error {
 	var handler slog.Handler
 
 	if devMode {
-		// 前台模式：stderr + griffino-dev.log
+		// Foreground mode: stderr + griffino-dev.log / 前台模式：stderr + griffino-dev.log
 		devLog := &lumberjack.Logger{
 			Filename:   filepath.Join(logDir, "griffino-dev.log"),
 			MaxSize:    maxSizeMB,
@@ -72,7 +73,7 @@ func Init(logDir string, devMode bool) error {
 			slog.NewTextHandler(devLog, &slog.HandlerOptions{Level: slog.LevelDebug}),
 		)
 	} else {
-		// daemon 模式：按级别和来源路由到不同文件
+		// Daemon mode: route to different files by level and source / daemon 模式：按级别和来源路由到不同文件
 		mainLog := &lumberjack.Logger{
 			Filename:   filepath.Join(logDir, "griffino.log"),
 			MaxSize:    maxSizeMB,

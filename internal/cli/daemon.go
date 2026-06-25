@@ -39,16 +39,30 @@ import (
 	"github.com/GriffinGuard/Griffino/internal/service"
 	"github.com/GriffinGuard/Griffino/internal/store"
 	"github.com/GriffinGuard/Griffino/internal/system"
-	"github.com/GriffinGuard/Griffino/internal/util"
+	"github.com/GriffinGuard/Griffino/internal/taskscheduler"
+	"github.com/GriffinGuard/Griffino/internal/tracing"
 	"github.com/GriffinGuard/Griffino/pkg/broker"
 	"github.com/GriffinGuard/Griffino/pkg/container"
 	dockercontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/spf13/cobra"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
-	"github.com/GriffinGuard/Griffino/internal/taskscheduler"
+	"github.com/spf13/cobra"
 )
+
+// providerHealthChecker lets Router check provider health via plugin running state.
+// A provider's ProviderID is its plugin ID; if no matching plugin is found, treat as healthy (conservative, don't silently drop) / 让 Router 通过插件运行状态判断 provider 是否健康，ProviderID 约定为插件 ID，查不到时视为健康.
+type providerHealthChecker struct {
+	st *store.Store
+}
+
+func (p providerHealthChecker) IsProviderHealthy(providerID string) bool {
+	inst, err := p.st.GetPlugin(providerID)
+	if err != nil || inst == nil {
+		return true
+	}
+	return inst.Status == store.StatusRunning
+}
 
 func checkNotRoot() error {
 	u, err := user.Current()
@@ -62,7 +76,7 @@ func checkNotRoot() error {
 	return nil
 }
 
-func NewDaemonCmd(cfg *config.Config) *cobra.Command {
+func NewDaemonCmd(cfg *config.Config, version string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "daemon",
 		Short: "Start Griffino daemon",
@@ -71,7 +85,7 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 				return err
 			}
 
-			// 1. 初始化 logger
+			// 1. Initialize logger / 初始化 logger
 			homeDir, _ := os.UserHomeDir()
 			logDir := filepath.Join(homeDir, ".griffino", "logs")
 			devMode := os.Getenv("GRIFFINO_DEV") == "1"
@@ -79,7 +93,7 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 				fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 			}
 
-			// 2. 尽早启动 bubbletea，后续所有输出都走 progress
+			// 2. Start bubbletea ASAP; all subsequent output goes through progress / 尽早启动 bubbletea，后续所有输出都走 progress
 			progress.Init()
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -88,7 +102,21 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 			slog.Info("daemon starting")
 			progress.Log("", griffinoi18n.T(griffinoi18n.MsgDaemonStarting))
 
-			// 3. 打开数据库
+			// 2b. Initialize distributed tracing (off by default; only exports when an OTLP endpoint is configured) / 初始化分布式追踪，默认关闭，仅当配置了 OTLP 端点才导出
+			traceShutdown, err := tracing.Init(ctx, cfg.Telemetry.OTLPEndpoint, "griffino")
+			if err != nil {
+				slog.Error("failed to initialize tracing", "error", err)
+				return err
+			}
+			defer func() {
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := traceShutdown(shutdownCtx); err != nil {
+					slog.Error("tracing shutdown failed", "error", err)
+				}
+			}()
+
+			// 3. Open database / 打开数据库
 			s, err := store.New(cfg.DatabasePath)
 			if err != nil {
 				slog.Error("failed to open database", "error", err)
@@ -97,28 +125,28 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 			}
 			defer s.Close()
 
-			// 4. 连接 Docker
+			// 4. Connect to Docker / 连接 Docker
 			dockerCli, err := container.NewDockerClient()
 			if err != nil {
 				slog.Error("failed to connect to docker", "error", err)
 				return err
 			}
 
-			// 5. 启动系统级基础服务（带冲突处理）
+			// 5. Start system-level infrastructure services (with conflict handling) / 启动系统级基础服务（带冲突处理）
 			sysMgr := system.NewManager(dockerCli, s)
 			if err := bootstrapWithConflictHandling(ctx, dockerCli, sysMgr); err != nil {
 				slog.Error("bootstrap failed", "error", err)
 				return err
 			}
 
-			// 6. 从 store 读取自动生成的系统配置
+			// 6. Read auto-generated system config from store / 从 store 读取自动生成的系统配置
 			sysState, err := sysMgr.GetSystemState()
 			if err != nil {
 				slog.Error("failed to get system state", "error", err)
 				return err
 			}
 
-			// 7. 等待 RabbitMQ 就绪
+			// 7. Wait for RabbitMQ to be ready / 等待 RabbitMQ 就绪
 			slog.Info("waiting for system services")
 			progress.Log("", griffinoi18n.T(griffinoi18n.MsgDaemonWaitingServices))
 			if err := waitForRabbitMQ(sysState.RabbitMQManagementPort, sysState.RabbitMQAdminUser, sysState.RabbitMQAdminPassword); err != nil {
@@ -128,7 +156,7 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 
 			pluginSvc := service.NewPluginService(cfg, s, sysMgr, dockerCli)
 
-			// 8. 启动 dev socket server
+			// 8. Start dev socket server / 启动 dev socket server
 			devSrv := devdaemon.NewServer(config.SocketPath(), s, pluginSvc)
 			go func() {
 				if err := devSrv.Start(ctx); err != nil {
@@ -136,7 +164,7 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 				}
 			}()
 
-			// 9. 更新运行时 config
+			// 9. Update runtime config / 更新运行时 config
 			cfg.RabbitMQ.Host = "localhost"
 			cfg.RabbitMQ.ContainerHost = system.RabbitMQContainerName
 			cfg.RabbitMQ.Port = sysState.RabbitMQPort
@@ -144,7 +172,7 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 			cfg.RabbitMQ.AdminUser = sysState.RabbitMQAdminUser
 			cfg.RabbitMQ.AdminPassword = sysState.RabbitMQAdminPassword
 
-			// 10. 声明系统级共享 Exchange
+			// 10. Declare system-level shared exchanges / 声明系统级共享 Exchange
 			brokerClient := broker.NewClient(
 				"localhost",
 				sysState.RabbitMQManagementPort,
@@ -156,7 +184,7 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 				return fmt.Errorf("broker bootstrap failed: %w", err)
 			}
 
-			// 11. 初始化 Task 调度器 + 启动消息路由
+			// 11. Initialize Task scheduler + start message router / 初始化 Task 调度器 + 启动消息路由
 			amqpURL := fmt.Sprintf("amqp://%s:%s@localhost:%d/",
 				sysState.RabbitMQAdminUser,
 				sysState.RabbitMQAdminPassword,
@@ -187,6 +215,7 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 			defer scheduler.Stop()
 
 			r := router.New(redisAddr, sysState.RedisPassword, scheduler)
+			r.SetHealthChecker(providerHealthChecker{st: s})
 			if err := r.Start(amqpURL); err != nil {
 				slog.Error("router failed to start", "error", err)
 			} else {
@@ -211,18 +240,21 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 				"Redis":    fmt.Sprintf("%s (127.0.0.1:%d)", rdContainer, sysState.RedisPort),
 			}))
 
-			// 12. 启动健康检查器
+			// 12. Start health checker / 启动健康检查器
 			checker := health.NewChecker(dockerCli, s, scheduler)
 			checker.Start(ctx)
 
-			// 13. 重置中断状态 + 恢复上次运行中的插件
+			// 12b. Start Task timeout watchdog (marks Tasks failed when plugins are unresponsive) / 启动 Task 超时看门狗，插件无响应时主动标记失败
+			scheduler.StartWatchdog(ctx)
+
+			// 13. Reset interrupted state + recover previously running plugins / 重置中断状态 + 恢复上次运行中的插件
 			restoreCtx, restoreCancel := context.WithTimeout(ctx, 5*time.Minute)
 			defer restoreCancel()
 
 			plugins, err := s.ListPlugins()
 			if err == nil {
 				for _, p := range plugins {
-					// 重置 pulling/starting 状态（daemon 重启导致中断）
+					// Reset pulling/starting state (interrupted by daemon restart) / 重置 pulling/starting 状态（daemon 重启导致中断）
 					if p.Status == store.StatusPulling || p.Status == store.StatusStarting {
 						slog.Warn("resetting interrupted plugin status",
 							"plugin", p.ID, "status", p.Status)
@@ -241,7 +273,7 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 						map[string]interface{}{"ID": p.ID}))
 					_ = s.UpdateStatus(p.ID, store.StatusStopped)
 
-					// 异步恢复，不阻塞 daemon 启动
+					// Recover asynchronously, don't block daemon startup / 异步恢复，不阻塞 daemon 启动
 					pluginID := p.ID
 					go func() {
 						if err := pluginSvc.StartPluginAsync(pluginID); err != nil {
@@ -259,28 +291,29 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 			}
 			_ = restoreCtx
 
-			// 14. 首次启动时自动创建 admin 账号
-			hasUser, _ := s.HasAnyUser()
-			if !hasUser {
-				password := util.GenerateRandomPassword()
-				if _, err := s.CreateUser("admin", password, store.RoleAdmin, true); err != nil {
-					slog.Error("failed to create admin user", "error", err)
-					return err
-				}
-				slog.Info("admin user created")
-				progress.Success("", griffinoi18n.T(griffinoi18n.MsgDaemonAdminCreated,
-					map[string]interface{}{"Password": password}))
+			// 14. Initialize admin account on first boot / 首次启动时按模式初始化 admin 账号
+			adminInit, _ := cmd.Flags().GetString("admin-init")
+			if err := bootstrapAdmin(s, adminInit); err != nil {
+				slog.Error("failed to bootstrap admin user", "error", err)
+				return err
 			}
 
-			// 15. 启动 API 服务器
-			apiServer := api.NewServer(cfg, s, sysMgr, dockerCli, pluginSvc, r)
+			// 15. Start API server / 启动 API 服务器
+			apiServer := api.NewServer(cfg, s, sysMgr, dockerCli, pluginSvc, r, version)
 			go func() {
 				if err := apiServer.Start(); err != nil && err != http.ErrServerClosed {
 					slog.Error("API server exited unexpectedly", "error", err)
 				}
 			}()
 
-			// 16. 监听退出信号，优雅关闭
+			// Open browser to web console after startup if needed / 启动后按需打开浏览器到 Web 控制台
+			if openFlag, _ := cmd.Flags().GetBool("open"); openFlag {
+				time.AfterFunc(800*time.Millisecond, func() {
+					openBrowser("http://localhost:7070")
+				})
+			}
+
+			// 16. Listen for shutdown signal and shut down gracefully / 监听退出信号，优雅关闭
 			quit := make(chan os.Signal, 1)
 			signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 			<-quit
@@ -298,11 +331,17 @@ func NewDaemonCmd(cfg *config.Config) *cobra.Command {
 			slog.Info("daemon stopped")
 			progress.Success("", griffinoi18n.T(griffinoi18n.MsgDaemonStopped))
 
-			// 最后才退出 bubbletea，确保上面所有输出都能渲染
+			// Exit bubbletea last so all output above can be rendered / 最后才退出 bubbletea，确保上面所有输出都能渲染
 			progress.Shutdown()
 			return nil
 		},
 	}
+
+	cmd.Flags().String("admin-init", "cli",
+		"First-run admin bootstrap: cli (create admin and print a random password), "+
+			"web (no admin; create it in the browser setup wizard), or "+
+			"unattended (no printed password; uses GRIFFINO_ADMIN_PASSWORD if set)")
+	cmd.Flags().Bool("open", false, "Open the web console in a browser after the daemon starts")
 
 	return cmd
 }
@@ -335,7 +374,7 @@ func resolveContainerConflict(
 	sysMgr *system.Manager,
 	conflictErr *system.ContainerConflictError,
 ) (string, error) {
-	// 容器冲突处理在 bubbletea 启动前可能触发，用 fmt 直接输出
+	// Container conflict handling may trigger before bubbletea starts; use fmt for direct output / 容器冲突处理在 bubbletea 启动前可能触发，用 fmt 直接输出
 	fmt.Printf("\n⚠️  Container name conflict: %s\n", conflictErr.Error())
 
 	var choice string

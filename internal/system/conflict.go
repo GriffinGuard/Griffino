@@ -16,12 +16,12 @@ package system
 
 import "fmt"
 
-// ContainerConflictError 表示容器名与非 Griffino 容器冲突
+// ContainerConflictError indicates a container name conflicts with a non-Griffino container / 表示容器名与非 Griffino 容器冲突
 type ContainerConflictError struct {
-    Name string
-    ID   string
+	Name string
+	ID   string
 }
 
 func (e *ContainerConflictError) Error() string {
-    return fmt.Sprintf("container name %s is already in use by a non-Griffino container (ID: %s)", e.Name, e.ID)
+	return fmt.Sprintf("container name %s is already in use by a non-Griffino container (ID: %s)", e.Name, e.ID)
 }

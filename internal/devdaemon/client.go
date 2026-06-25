@@ -21,17 +21,17 @@ import (
 	"time"
 )
 
-// Client 是 CLI 侧的 socket 客户端。
+// Client is the CLI-side socket client / CLI 侧的 socket 客户端.
 type Client struct {
 	socketPath string
 }
 
-// NewClient 创建客户端。socketPath 通常来自 config.SocketPath()。
+// NewClient creates a client. socketPath typically comes from config.SocketPath() / 创建客户端，socketPath 通常来自 config.SocketPath().
 func NewClient(socketPath string) *Client {
 	return &Client{socketPath: socketPath}
 }
 
-// IsDaemonRunning 检查 daemon 是否在运行（socket 是否可连接）。
+// IsDaemonRunning checks whether the daemon is running (socket is connectable) / 检查 daemon 是否在运行（socket 是否可连接）.
 func (c *Client) IsDaemonRunning() bool {
 	conn, err := net.DialTimeout("unix", c.socketPath, 2*time.Second)
 	if err != nil {
@@ -41,9 +41,10 @@ func (c *Client) IsDaemonRunning() bool {
 	return true
 }
 
-// DevInstall 通过 daemon 安装 Dev 插件。path 必须是绝对路径。
-func (c *Client) DevInstall(path string) (*InstallData, error) {
-	payload, _ := json.Marshal(InstallPayload{Path: path})
+// DevInstall installs a Dev plugin via the daemon. path must be an absolute path.
+// force=true overwrites an already-installed plugin with the same ID / 通过 daemon 安装 Dev 插件，path 必须是绝对路径，force=true 时覆盖同 ID 的已安装插件.
+func (c *Client) DevInstall(path string, force bool) (*InstallData, error) {
+	payload, _ := json.Marshal(InstallPayload{Path: path, Force: force})
 	resp, err := c.call(Request{Op: OpDevInstall, Payload: payload})
 	if err != nil {
 		return nil, err
@@ -55,7 +56,7 @@ func (c *Client) DevInstall(path string) (*InstallData, error) {
 	return &data, nil
 }
 
-// DevStart 通过 daemon 启动 Dev 插件。
+// DevStart starts a Dev plugin via the daemon / 通过 daemon 启动 Dev 插件.
 func (c *Client) DevStart(pluginID string) (*StartData, error) {
 	payload, _ := json.Marshal(PluginIDPayload{PluginID: pluginID})
 	resp, err := c.call(Request{Op: OpDevStart, Payload: payload})
@@ -69,22 +70,22 @@ func (c *Client) DevStart(pluginID string) (*StartData, error) {
 	return &data, nil
 }
 
-// DevStop 通过 daemon 停止 Dev 插件。
+// DevStop stops a Dev plugin via the daemon / 通过 daemon 停止 Dev 插件.
 func (c *Client) DevStop(pluginID string) error {
 	payload, _ := json.Marshal(PluginIDPayload{PluginID: pluginID})
 	_, err := c.call(Request{Op: OpDevStop, Payload: payload})
 	return err
 }
 
-// DevUninstall 通过 daemon 卸载 Dev 插件。
-// force=true 时先执行 stop 再删除，等价于 dev stop + dev uninstall。
+// DevUninstall uninstalls a Dev plugin via the daemon.
+// force=true stops first then deletes, equivalent to dev stop + dev uninstall / 通过 daemon 卸载 Dev 插件，force=true 时先 stop 再删除.
 func (c *Client) DevUninstall(pluginID string, force bool) error {
 	payload, _ := json.Marshal(UninstallPayload{PluginID: pluginID, Force: force})
 	_, err := c.call(Request{Op: OpDevUninstall, Payload: payload})
 	return err
 }
 
-// call 发送一个请求并读取响应。
+// call sends a request and reads the response / 发送一个请求并读取响应.
 func (c *Client) call(req Request) (*Response, error) {
 	conn, err := net.DialTimeout("unix", c.socketPath, 5*time.Second)
 	if err != nil {

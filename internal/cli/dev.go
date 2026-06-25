@@ -20,9 +20,9 @@ import (
 	"os"
 	"path/filepath"
 
-	griffinoi18n "github.com/GriffinGuard/Griffino/internal/i18n"
 	"github.com/GriffinGuard/Griffino/internal/config"
 	"github.com/GriffinGuard/Griffino/internal/devdaemon"
+	griffinoi18n "github.com/GriffinGuard/Griffino/internal/i18n"
 	"github.com/GriffinGuard/Griffino/internal/progress"
 	"github.com/GriffinGuard/Griffino/internal/util"
 	"github.com/spf13/cobra"
@@ -59,10 +59,18 @@ func mustDaemonClient() *devdaemon.Client {
 }
 
 func newDevInstallCmd(cfg *config.Config) *cobra.Command {
-	return &cobra.Command{
+	var force bool
+
+	cmd := &cobra.Command{
 		Use:   "install <plugin-dir>",
 		Short: "Install a local dev plugin (skips allowlist, requires daemon)",
-		Args:  cobra.ExactArgs(1),
+		Long: `Install a local dev plugin (skips allowlist, requires daemon).
+
+If a plugin with the same ID is already installed, install fails unless -f/--force
+is given. With --force the existing install is overwritten in place: a running
+plugin is stopped first, and the saved configuration is preserved as long as the
+new manifest does not introduce missing required fields.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			absDir, err := filepath.Abs(args[0])
 			if err != nil {
@@ -74,20 +82,27 @@ func newDevInstallCmd(cfg *config.Config) *cobra.Command {
 			}
 
 			c := mustDaemonClient()
-			data, err := c.DevInstall(absDir)
+			data, err := c.DevInstall(absDir, force)
 			if err != nil {
 				slog.Error("dev install failed", "dir", absDir, "error", err)
 				return err
 			}
 
-			slog.Info("dev plugin installed", "id", data.ID, "version", data.PluginVersion)
-			progress.Success("", griffinoi18n.T(griffinoi18n.MsgDevInstallSuccess,
+			slog.Info("dev plugin installed", "id", data.ID, "version", data.PluginVersion, "overwritten", data.Overwritten)
+			successMsg := griffinoi18n.MsgDevInstallSuccess
+			if data.Overwritten {
+				successMsg = griffinoi18n.MsgDevReinstallSuccess
+			}
+			progress.Success("", griffinoi18n.T(successMsg,
 				map[string]interface{}{"ID": data.ID, "Name": data.Name, "Version": data.PluginVersion}))
 			progress.Log("", griffinoi18n.T(griffinoi18n.MsgDevInstallNextStep,
 				map[string]interface{}{"ID": data.ID}))
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Overwrite if a plugin with the same ID is already installed")
+	return cmd
 }
 
 func newDevStartCmd(cfg *config.Config) *cobra.Command {

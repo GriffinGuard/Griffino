@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Windows MSI source, built with the WiX Toolset v5 (`wix build`). WiX v5 runs
+  cross-platform (.NET), so the MSI is still produced on the Linux release job,
+  but—unlike the previous wixl/msitools setup—it supports <Environment> (PATH)
+  and <Shortcut>. This MSI therefore:
+    - installs griffino.exe to C:\Program Files\Griffino,
+    - appends that directory to the system PATH (so `griffino` works in any shell),
+    - adds a "Griffino" Start Menu shortcut,
+    - registers an Add/Remove Programs entry with upgrade handling.
+  Autostart is still left to `griffino service install` (a per-user logon task),
+  consistent with the per-user service model.
+
+  Build:
+    wix build -arch x64 -d Version=0.1.0 -d BinPath=griffino.exe -o griffino.msi griffino.wxs
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Griffino"
+           Manufacturer="GriffinGuard"
+           Version="$(var.Version)"
+           UpgradeCode="21F38369-8A57-4F6D-AC13-1F703577A99F"
+           Scope="perMachine"
+           Compressed="yes">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Griffino is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Icon is extracted from the executable (it carries an embedded icon). -->
+    <Icon Id="griffino.exe" SourceFile="$(var.BinPath)" />
+    <Property Id="ARPPRODUCTICON" Value="griffino.exe" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/GriffinGuard/Griffino" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLDIR" Name="Griffino">
+        <Component Id="MainExecutable" Guid="79A4B49D-2FEA-4755-B308-4F57CDA443B8">
+          <File Id="griffinoExe" Name="griffino.exe" Source="$(var.BinPath)" KeyPath="yes" />
+          <!-- Append the install dir to the system PATH so `griffino` is callable
+               from any shell. Part="last" appends; Action="set" + System="yes"
+               edits the machine PATH (perMachine install runs elevated). -->
+          <Environment Id="GriffinoPath" Name="PATH" Value="[INSTALLDIR]"
+                       Part="last" Action="set" Permanent="no" System="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut">
+        <!-- Launches `griffino tray`: a system-tray icon supervising a headless
+             daemon, with a menu to open the WebUI. The MSI ships the GUI build,
+             so clicking the Start Menu entry gives the tray + web console rather
+             than a flashing console window. -->
+        <Shortcut Id="GriffinoShortcut"
+                  Name="Griffino"
+                  Description="Griffino plugin orchestration platform"
+                  Target="[INSTALLDIR]griffino.exe"
+                  Arguments="tray"
+                  WorkingDirectory="INSTALLDIR"
+                  Icon="griffino.exe" />
+        <!-- A non-file component needs its own keypath. -->
+        <RegistryValue Root="HKCU" Key="Software\GriffinGuard\Griffino"
+                       Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <Feature Id="Complete" Title="Griffino" Level="1">
+      <ComponentRef Id="MainExecutable" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+  </Package>
+</Wix>

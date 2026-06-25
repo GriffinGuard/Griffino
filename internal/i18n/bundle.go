@@ -30,8 +30,8 @@ var localeFS embed.FS
 
 var bundle *i18n.Bundle
 
-// Init 初始化 i18n bundle，在 daemon/CLI 启动时调用一次。
-// langOverride 对应 --lang 参数，为空时自动检测系统语言。
+// Init initializes the i18n bundle, called once at daemon/CLI startup.
+// langOverride corresponds to the --lang parameter; when empty, the system language is auto-detected / 初始化 i18n bundle，在 daemon/CLI 启动时调用一次，langOverride 对应 --lang 参数，为空时自动检测系统语言.
 func Init(langOverride string) error {
 	bundle = i18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
@@ -48,8 +48,8 @@ func Init(langOverride string) error {
 	return nil
 }
 
-// detectLanguage 按优先级检测语言：
-// --lang 参数 > GRIFFINO_LANG 环境变量 > 系统 LANG > 默认英文
+// detectLanguage detects language by priority:
+// --lang parameter > GRIFFINO_LANG env > system LANG > default English / 按优先级检测语言：--lang 参数 > GRIFFINO_LANG 环境变量 > 系统 LANG > 默认英文
 func detectLanguage(override string) string {
 	if override != "" {
 		return override
@@ -58,7 +58,7 @@ func detectLanguage(override string) string {
 		return env
 	}
 	if sysLang := os.Getenv("LANG"); sysLang != "" {
-		// 系统 LANG 格式通常是 zh_CN.UTF-8，取前缀
+		// System LANG is typically zh_CN.UTF-8; take the prefix / 系统 LANG 格式通常是 zh_CN.UTF-8，取前缀
 		lang := strings.Split(sysLang, ".")[0]
 		if lang != "" {
 			return lang

@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -28,9 +29,21 @@ import (
 )
 
 const (
-	approvedImagesURL  = "https://raw.githubusercontent.com/GriffinGuard/Griffino-Plugins/main/approved-images.json"
-	griffinguardPrefix = "ghcr.io/griffinguard/"
+	defaultApprovedImagesURL = "https://raw.githubusercontent.com/GriffinGuard/Griffino-Plugins/main/approved-images.json"
+	griffinguardPrefix       = "ghcr.io/griffinguard/"
 )
+
+// approvedImagesURL returns the URL of the community-approved image whitelist.
+// Like the registry, it defaults to the official repo; when GRIFFINO_REGISTRY_BASE_URL
+// is set it is derived from the same base URL (at your own risk, for local dev / private
+// deployment only — locked to the official default when unset).
+// 返回社区批准镜像白名单地址；默认官方源，设置 GRIFFINO_REGISTRY_BASE_URL 时从同一基址派生（自担风险，仅本地/私有部署）。
+func approvedImagesURL() string {
+	if v := strings.TrimRight(os.Getenv("GRIFFINO_REGISTRY_BASE_URL"), "/"); v != "" {
+		return v + "/approved-images.json"
+	}
+	return defaultApprovedImagesURL
+}
 
 type approvedEntry struct {
 	Image      string `json:"image"`
@@ -49,8 +62,8 @@ type UnapprovedError struct {
 }
 
 func (e *UnapprovedError) Error() string {
-    return griffinoi18n.T(griffinoi18n.ErrImageCheckUnapproved,
-        map[string]interface{}{"Images": strings.Join(e.Images, ", ")})
+	return griffinoi18n.T(griffinoi18n.ErrImageCheckUnapproved,
+		map[string]interface{}{"Images": strings.Join(e.Images, ", ")})
 }
 
 // CheckBootSpec checks all auxiliary service images in the BootSpec against
@@ -61,11 +74,12 @@ func CheckBootSpec(spec *manifest.BootSpec) error {
 	toCheck := make([]string, 0, len(spec.Services))
 	for svcID, svc := range spec.Services {
 		if svc.Image == "" || svcID == spec.MainServiceID {
-			// mainService 镜像由 CI/CD 保证，安装时不检查
+			// main service image is guaranteed by CI/CD; not checked at install time
+			// 主服务镜像由 CI/CD 保证，安装时不检查
 			continue
 		}
-		// sub service 镜像一律进白名单检查
-		// 包括 ghcr.io/griffinguard/ 前缀的镜像也不例外
+		// every sub-service image goes through the whitelist check, including
+		// ghcr.io/griffinguard/ -prefixed ones / 子服务镜像一律走白名单，含 ghcr.io/griffinguard/ 前缀
 		toCheck = append(toCheck, svc.Image)
 	}
 	if len(toCheck) == 0 {
@@ -75,7 +89,7 @@ func CheckBootSpec(spec *manifest.BootSpec) error {
 	approved, err := fetchApprovedImages()
 	if err != nil {
 		return fmt.Errorf("%s", griffinoi18n.T(griffinoi18n.ErrImageCheckFetchFailed,
-			map[string]interface{}{"detail": err.Error()}))	
+			map[string]interface{}{"detail": err.Error()}))
 	}
 
 	approvedSet := make(map[string]struct{}, len(approved))
@@ -95,25 +109,27 @@ func CheckBootSpec(spec *manifest.BootSpec) error {
 	return nil
 }
 
-
-// IsAllowedToPull 判断一个镜像是否允许被 Griffino 自动拉取。
+// IsAllowedToPull reports whether Griffino may auto-pull an image.
 //
-// 规则：
-//   - mainService 镜像：必须是 ghcr.io/griffinguard/ 前缀（由 CI/CD 审核保证）
-//   - sub service 镜像：必须在社区白名单中
+// Rules:
+//   - main service image: must have the ghcr.io/griffinguard/ prefix (vetted by CI/CD)
+//   - sub-service image: must be in the community whitelist
 //
-// Dev 插件的本地镜像应已通过 docker build 存在，调用方在本地存在时不会走到这里。
+// A dev plugin's local image should already exist via `docker build`; callers skip
+// this path when the image is present locally.
+// 判断镜像是否允许被自动拉取：主服务镜像须为 ghcr.io/griffinguard/ 前缀，子服务镜像须在社区白名单中。
 func IsAllowedToPull(imageName, mainServiceImage string) (bool, error) {
 	if imageName == mainServiceImage {
-		// mainService：只允许 griffinguard 官方前缀
+		// main service: only the official griffinguard prefix is allowed / 主服务仅允许官方前缀
 		return strings.HasPrefix(imageName, griffinguardPrefix), nil
 	}
 
-	// sub service：查白名单，不接受 griffinguard 前缀的直接放行
+	// sub-service: check the whitelist; the griffinguard prefix is not auto-allowed here
+	// 子服务：查白名单，griffinguard 前缀在此不直接放行
 	approved, err := fetchApprovedImages()
 	if err != nil {
 		return false, fmt.Errorf("%s", griffinoi18n.T(griffinoi18n.ErrImageCheckFetchFailed,
-    		map[string]interface{}{"Error": err.Error()}))
+			map[string]interface{}{"Error": err.Error()}))
 	}
 	for _, e := range approved {
 		if e.Image == imageName {
@@ -125,7 +141,7 @@ func IsAllowedToPull(imageName, mainServiceImage string) (bool, error) {
 
 func fetchApprovedImages() ([]approvedEntry, error) {
 	c := &http.Client{Timeout: 15 * time.Second}
-	resp, err := c.Get(approvedImagesURL)
+	resp, err := c.Get(approvedImagesURL())
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +152,7 @@ func fetchApprovedImages() ([]approvedEntry, error) {
 	var result approvedList
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("%s", griffinoi18n.T(griffinoi18n.ErrImageCheckParseFailed,
-    		map[string]interface{}{"Error": err.Error()}))
+			map[string]interface{}{"Error": err.Error()}))
 	}
 	return result.ApprovedImages, nil
 }

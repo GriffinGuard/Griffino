@@ -31,10 +31,9 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/client"
 )
 
-// pullEvent 对应 Docker ImagePull 返回的 JSON stream 每行结构
+// pullEvent corresponds to each line of the JSON stream returned by Docker ImagePull / Docker ImagePull 返回的 JSON stream 每行结构
 type pullEvent struct {
 	Status         string          `json:"status"`
 	ID             string          `json:"id"`
@@ -46,46 +45,81 @@ type progressDetail struct {
 	Total   int64 `json:"total"`
 }
 
-// ContainerName 根据插件ID和服务ID生成容器名称
+// ContainerName generates a container name from the plugin ID and service ID / 根据插件ID和服务ID生成容器名称
 func ContainerName(pluginID, serviceID string) string {
 	safeID := strings.ReplaceAll(pluginID, ".", "_")
 	return fmt.Sprintf("griffino_%s_%s", safeID, serviceID)
 }
 
-// PullImages 拉取插件所有服务的镜像（跳过本地已有的）。
+// PullImages pulls images for all plugin services (skipping locally available ones).
+// When allowUnapproved is true (Dev plugin), image whitelist validation is skipped / 拉取插件所有服务的镜像，跳过本地已有的，Dev 插件跳过白名单校验.
 func PullImages(
-    ctx context.Context,
-    cli *client.Client,
-    pkg *manifest.PluginPackage,
-    pluginID string,
+	ctx context.Context,
+	cli DockerAPI,
+	pkg *manifest.PluginPackage,
+	pluginID string,
+	allowUnapproved bool,
 ) error {
-    mainServiceImage := pkg.BootSpec.Services[pkg.BootSpec.MainServiceID].Image
-    for serviceID, svcSpec := range pkg.BootSpec.Services {
-        if svcSpec.Image == "" {
-            continue
-        }
-        progress.Log(pluginID, griffinoi18n.T(griffinoi18n.MsgContainerCheckingImage, map[string]interface{}{
-            "Image":   svcSpec.Image,
-            "Service": serviceID,
-        }))
-        slog.Info("checking image", "image", svcSpec.Image, "service", serviceID)
-        if err := ensureImage(ctx, cli, svcSpec.Image, mainServiceImage, serviceID, pluginID); err != nil {
-            return errors.New(griffinoi18n.T(griffinoi18n.ErrContainerImagePrep, map[string]interface{}{
-                "Service": serviceID,
-            }) + ": " + err.Error())
-        }
-    }
-    return nil
+	mainServiceImage := pkg.BootSpec.Services[pkg.BootSpec.MainServiceID].Image
+	for serviceID, svcSpec := range pkg.BootSpec.Services {
+		if svcSpec.Image == "" {
+			continue
+		}
+		progress.Log(pluginID, griffinoi18n.T(griffinoi18n.MsgContainerCheckingImage, map[string]interface{}{
+			"Image":   svcSpec.Image,
+			"Service": serviceID,
+		}))
+		slog.Info("checking image", "image", svcSpec.Image, "service", serviceID)
+		if err := ensureImage(ctx, cli, svcSpec.Image, mainServiceImage, serviceID, pluginID, allowUnapproved); err != nil {
+			return errors.New(griffinoi18n.T(griffinoi18n.ErrContainerImagePrep, map[string]interface{}{
+				"Service": serviceID,
+			}) + ": " + err.Error())
+		}
+	}
+	return nil
 }
 
-// StartContainers 按依赖顺序创建并启动插件的所有容器。
+// StartContainers creates and starts all plugin containers in dependency order / 按依赖顺序创建并启动插件的所有容器.
+// Platform default container resource caps, applied when a service does not declare
+// its own limits, so no plugin runs unbounded / 平台默认容器资源上限，未声明时回退.
+const (
+	defaultMemoryMB  = 512
+	defaultCPUs      = 1.0
+	defaultPidsLimit = 512
+)
+
+// resolveResources builds the Docker resource limits for a service, preferring the
+// manifest-declared caps and falling back to the platform defaults / 解析容器资源上限.
+func resolveResources(spec *manifest.ResourceLimits) container.Resources {
+	memMB := defaultMemoryMB
+	cpus := defaultCPUs
+	pids := defaultPidsLimit
+	if spec != nil {
+		if spec.MemoryMB > 0 {
+			memMB = spec.MemoryMB
+		}
+		if spec.CPUs > 0 {
+			cpus = spec.CPUs
+		}
+		if spec.PidsLimit > 0 {
+			pids = spec.PidsLimit
+		}
+	}
+	pidsLimit := int64(pids)
+	return container.Resources{
+		Memory:    int64(memMB) * 1024 * 1024,
+		NanoCPUs:  int64(cpus * 1e9),
+		PidsLimit: &pidsLimit,
+	}
+}
+
 func StartContainers(
 	ctx context.Context,
-	cli *client.Client,
+	cli DockerAPI,
 	pkg *manifest.PluginPackage,
 	envMap map[string][]string,
 	networkName string,
-    pluginID string,
+	pluginID string,
 ) (map[string]string, error) {
 	order, err := topoSort(pkg.BootSpec)
 	if err != nil {
@@ -177,9 +211,10 @@ func StartContainers(
 				RestartPolicy: container.RestartPolicy{
 					Name: "unless-stopped",
 				},
-				CapDrop:     capDrop,
-				CapAdd:      capAdd,
-				Privileged:  false,
+				Resources:  resolveResources(svcSpec.Resources),
+				CapDrop:    capDrop,
+				CapAdd:     capAdd,
+				Privileged: false,
 				SecurityOpt: []string{
 					"no-new-privileges:true",
 				},
@@ -206,23 +241,24 @@ func StartContainers(
 	return containers, nil
 }
 
-// StartPlugin 拉取镜像并启动所有容器。
+// StartPlugin pulls images and starts all containers / 拉取镜像并启动所有容器.
 func StartPlugin(
-    ctx context.Context,
-    cli *client.Client,
-    pkg *manifest.PluginPackage,
-    envMap map[string][]string,
-    networkName string,
-    pluginID string,   // 新增
+	ctx context.Context,
+	cli DockerAPI,
+	pkg *manifest.PluginPackage,
+	envMap map[string][]string,
+	networkName string,
+	pluginID string,
+	allowUnapproved bool,
 ) (map[string]string, error) {
-    if err := PullImages(ctx, cli, pkg, pluginID); err != nil {
-        return nil, err
-    }
-    return StartContainers(ctx, cli, pkg, envMap, networkName, pluginID)
+	if err := PullImages(ctx, cli, pkg, pluginID, allowUnapproved); err != nil {
+		return nil, err
+	}
+	return StartContainers(ctx, cli, pkg, envMap, networkName, pluginID)
 }
 
-// StopPlugin 停止并删除插件的所有容器
-func StopPlugin(ctx context.Context, cli *client.Client, pluginID string,) error {
+// StopPlugin stops and removes all plugin containers / 停止并删除插件的所有容器
+func StopPlugin(ctx context.Context, cli DockerAPI, pluginID string) error {
 	filterArgs := filters.NewArgs(
 		filters.Arg("label", fmt.Sprintf("griffino.plugin.id=%s", pluginID)),
 		filters.Arg("label", "griffino.managed=true"),
@@ -258,8 +294,8 @@ func StopPlugin(ctx context.Context, cli *client.Client, pluginID string,) error
 	return nil
 }
 
-// StopPluginContainers 只停止容器，不删除（daemon 退出时调用，保留容器供下次恢复）
-func StopPluginContainers(ctx context.Context, cli *client.Client, pluginID string,) error {
+// StopPluginContainers stops containers without removing them (called on daemon exit, preserves containers for next recovery) / 只停止容器不删除，daemon 退出时调用保留容器供下次恢复
+func StopPluginContainers(ctx context.Context, cli DockerAPI, pluginID string) error {
 	filterArgs := filters.NewArgs(
 		filters.Arg("label", fmt.Sprintf("griffino.plugin.id=%s", pluginID)),
 		filters.Arg("label", "griffino.managed=true"),
@@ -289,8 +325,8 @@ func StopPluginContainers(ctx context.Context, cli *client.Client, pluginID stri
 	return nil
 }
 
-// findContainer 查找容器，返回 (id, state, error)
-func findContainer(ctx context.Context, cli *client.Client, name string) (string, string, error) {
+// findContainer finds a container, returning (id, state, error) / 查找容器，返回 (id, state, error)
+func findContainer(ctx context.Context, cli DockerAPI, name string) (string, string, error) {
 	list, err := cli.ContainerList(ctx, container.ListOptions{
 		All:     true,
 		Filters: filters.NewArgs(filters.Arg("name", "/"+name)),
@@ -308,8 +344,8 @@ func findContainer(ctx context.Context, cli *client.Client, name string) (string
 	return "", "", nil
 }
 
-// isGriffinoManaged 检查容器是否有 griffino.managed=true 标签
-func isGriffinoManaged(ctx context.Context, cli *client.Client, containerID string) bool {
+// isGriffinoManaged checks whether a container has the griffino.managed=true label / 检查容器是否有 griffino.managed=true 标签
+func isGriffinoManaged(ctx context.Context, cli DockerAPI, containerID string) bool {
 	info, _, err := cli.ContainerInspectWithRaw(ctx, containerID, false)
 	if err != nil {
 		return false
@@ -317,7 +353,7 @@ func isGriffinoManaged(ctx context.Context, cli *client.Client, containerID stri
 	return info.Config.Labels["griffino.managed"] == "true"
 }
 
-// topoSort 对服务按 depends_on 进行拓扑排序，返回启动顺序
+// topoSort topologically sorts services by depends_on, returning start order / 对服务按 depends_on 拓扑排序，返回启动顺序
 func topoSort(bootSpec *manifest.BootSpec) ([]string, error) {
 	visited := make(map[string]bool)
 	result := []string{}
@@ -359,27 +395,31 @@ func topoSort(bootSpec *manifest.BootSpec) ([]string, error) {
 	return result, nil
 }
 
-// ensureImage 确保镜像存在，本地没有则在校验通过后自动拉取。
-func ensureImage(ctx context.Context, cli *client.Client, imageName, mainServiceImage, serviceID, pluginID string) error {
+// ensureImage ensures an image exists; if not local, auto-pulls after validation.
+// When allowUnapproved is true (Dev plugin), image whitelist validation is skipped, allowing any image / 确保镜像存在，本地没有则在校验通过后自动拉取，Dev 插件跳过白名单校验
+func ensureImage(ctx context.Context, cli DockerAPI, imageName, mainServiceImage, serviceID, pluginID string, allowUnapproved bool) error {
 	_, _, err := cli.ImageInspectWithRaw(ctx, imageName)
 	if err == nil {
 		slog.Info("image already exists locally", "image", imageName)
 		return nil
 	}
 
-	allowed, err := imagecheck.IsAllowedToPull(imageName, mainServiceImage)
-	if err != nil {
-		return errors.New(griffinoi18n.T(griffinoi18n.ErrContainerWhitelistCheck) + ": " + err.Error())
-	}
-	if !allowed {
-		if imageName == mainServiceImage {
-			return errors.New(griffinoi18n.T(griffinoi18n.ErrContainerImageNotOfficial, map[string]interface{}{
+	// Dev plugins can use images not on the whitelist, skipping validation and pulling directly / Dev 插件可使用未列入白名单的镜像，跳过校验直接拉取
+	if !allowUnapproved {
+		allowed, err := imagecheck.IsAllowedToPull(imageName, mainServiceImage)
+		if err != nil {
+			return errors.New(griffinoi18n.T(griffinoi18n.ErrContainerWhitelistCheck) + ": " + err.Error())
+		}
+		if !allowed {
+			if imageName == mainServiceImage {
+				return errors.New(griffinoi18n.T(griffinoi18n.ErrContainerImageNotOfficial, map[string]interface{}{
+					"Image": imageName,
+				}))
+			}
+			return errors.New(griffinoi18n.T(griffinoi18n.ErrContainerImageNotAllowed, map[string]interface{}{
 				"Image": imageName,
 			}))
 		}
-		return errors.New(griffinoi18n.T(griffinoi18n.ErrContainerImageNotAllowed, map[string]interface{}{
-			"Image": imageName,
-		}))
 	}
 
 	progress.Log(pluginID, griffinoi18n.T(griffinoi18n.MsgContainerPullingImage, map[string]interface{}{

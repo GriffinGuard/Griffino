@@ -1,0 +1,103 @@
+name: ci
+
+# PR + push validation: build, vet, race-enabled tests, license headers, and
+# (non-blocking for now) lint/format signal. Unit tests use miniredis + a temp
+# BoltDB, so no Docker/RabbitMQ services are needed here.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test (race)
+        run: go test ./... -race
+
+  license:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install addlicense
+        run: go install github.com/google/addlicense@latest
+
+      - name: Check Apache headers
+        run: |
+          find cmd internal pkg tests -name '*.go' -o -name '*.toml' \
+            | xargs "$(go env GOPATH)/bin/addlicense" -check -c "GriffinGuard" -l apache -y 2025
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # gofmt is a hard gate — the repo is kept gofmt-clean.
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l . | grep -v '^vendor/' || true)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::these files are not gofmt-clean:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      # golangci-lint is advisory for now (findings surface in logs without
+      # failing the job); the enabled set will be tightened over time.
+      - uses: golangci/golangci-lint-action@v9.2.0
+        continue-on-error: true
+        with:
+          version: latest
+
+  openapi:
+    runs-on: ubuntu-latest
+    # Fails if the checked-in docs/ spec drifted from the handler annotations.
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@v1.16.4
+
+      # swag --parseDependency parses imported packages, so their sources must be
+      # in the module cache (this job doesn't build, so populate it explicitly).
+      - name: Download modules
+        run: go mod download
+
+      - name: Regenerate OpenAPI spec
+        run: "$(go env GOPATH)/bin/swag init -g internal/api/doc.go -o ./docs/api --parseDependency --parseInternal"
+
+      - name: Check for drift
+        run: git diff --exit-code -- docs/

@@ -150,6 +150,9 @@ other = "\nNext: griffino config {{ .ID }}"
 [DevInstallSuccess]
 other = "\n Dev plugin installed successfully\n  ID:      {{ .ID }}\n  Name:    {{ .Name }}\n  Version: {{ .Version }}"
 
+[DevReinstallSuccess]
+other = "\n Dev plugin re-installed (overwritten existing)\n  ID:      {{ .ID }}\n  Name:    {{ .Name }}\n  Version: {{ .Version }}"
+
 [DevInstallNextStep]
 other = "\nNext: griffino config {{ .ID }}  →  griffino dev start {{ .ID }}"
 
@@ -230,6 +233,30 @@ other = "Error: griffino daemon is not running, dev commands require daemon to b
 
 [DevDaemonStartHint]
 other = "Please run: griffino daemon"
+
+[ServiceInstalled]
+other = "Griffino service installed. It will start on login."
+
+[ServiceStartHint]
+other = "Start it now with: griffino service start"
+
+[ServiceUninstalled]
+other = "Griffino service removed."
+
+[ServiceStarted]
+other = "Griffino service started."
+
+[ServiceStopped]
+other = "Griffino service stopped."
+
+[ServiceRestarted]
+other = "Griffino service restarted."
+
+[ServiceStatus]
+other = "Griffino service: {{ .Status }}"
+
+[ServicePackaged]
+other = "This Griffino build is installed from the app package. Autostart is managed in Windows Settings → Startup apps (toggle \"Griffino\"), not via this command. Run 'griffino daemon' to start it now."
 
 [ErrInvalidPath]
 other = "invalid path: {{ .Error }}"
@@ -411,6 +438,12 @@ other = "Failed to delete plugin record"
 [plugin.err_read_status]
 other = "Failed to read plugin status"
 
+[plugin.err_upgrade_stop]
+other = "Failed to stop plugin before upgrade"
+
+[plugin.err_upgrade_save]
+other = "Failed to save plugin after upgrade"
+
 [system.msg_checking_network]
 other = "Checking system network..."
 
@@ -512,3 +545,45 @@ other = "Failed to parse image allowlist: {{.Error}}"
 
 [imagecheck.err_unapproved]
 other = "The following images are not in the allowlist and installation was rejected: {{.Images}}\nTo use these images, please submit a review via the Griffino Plugin Center."
+
+[doctor.check_docker]
+other = "Checking Docker..."
+
+[doctor.docker_ok]
+other = "Docker is running"
+
+[doctor.err_docker_fail]
+other = "Docker not available: {{.Error}}"
+
+[doctor.check_service]
+other = "Checking Griffino service installation..."
+
+[doctor.service_installed]
+other = "Griffino service is installed"
+
+[doctor.service_not_installed]
+other = "Griffino service is not installed (tip: run griffino service install to start on login)"
+
+[doctor.check_container]
+other = "Checking {{.Name}} container..."
+
+[doctor.container_ok]
+other = "{{.Name}} container is running"
+
+[doctor.container_fail]
+other = "{{.Name}} container is not running"
+
+[doctor.check_rabbitmq_health]
+other = "Checking RabbitMQ health..."
+
+[doctor.rabbitmq_health_ok]
+other = "RabbitMQ is healthy"
+
+[doctor.rabbitmq_health_fail]
+other = "RabbitMQ health check failed: {{.Error}}"
+
+[doctor.all_ok]
+other = "All checks passed"
+
+[doctor.has_issues]
+other = "Some checks failed, please review the output above"

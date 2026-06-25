@@ -150,6 +150,9 @@ other = "\n下一步: griffino config {{ .ID }}"
 [DevInstallSuccess]
 other = "\n Dev 插件安装成功\n  ID:   {{ .ID }}\n  名称: {{ .Name }}\n  版本: {{ .Version }}"
 
+[DevReinstallSuccess]
+other = "\n Dev 插件已覆盖安装（已替换原有安装）\n  ID:   {{ .ID }}\n  名称: {{ .Name }}\n  版本: {{ .Version }}"
+
 [DevInstallNextStep]
 other = "\n下一步: griffino config {{ .ID }}  →  griffino dev start {{ .ID }}"
 
@@ -230,6 +233,30 @@ other = "错误: griffino daemon 未运行，dev 命令需要 daemon 在线。"
 
 [DevDaemonStartHint]
 other = "请先执行: griffino daemon"
+
+[ServiceInstalled]
+other = "Griffino 服务已安装，将在登录时自动启动。"
+
+[ServiceStartHint]
+other = "立即启动请执行: griffino service start"
+
+[ServiceUninstalled]
+other = "Griffino 服务已移除。"
+
+[ServiceStarted]
+other = "Griffino 服务已启动。"
+
+[ServiceStopped]
+other = "Griffino 服务已停止。"
+
+[ServiceRestarted]
+other = "Griffino 服务已重启。"
+
+[ServiceStatus]
+other = "Griffino 服务: {{ .Status }}"
+
+[ServicePackaged]
+other = "当前 Griffino 由应用包（MSIX）安装。开机自启请在 Windows 设置 → 启动应用 中开关“Griffino”，而不是通过本命令管理。如需立即启动，请运行 'griffino daemon'。"
 
 [ErrInvalidPath]
 other = "无效的路径: {{ .Error }}"
@@ -411,6 +438,12 @@ other = "删除插件记录失败"
 [plugin.err_read_status]
 other = "读取插件状态失败"
 
+[plugin.err_upgrade_stop]
+other = "升级前停止插件失败"
+
+[plugin.err_upgrade_save]
+other = "升级后保存插件失败"
+
 [system.msg_checking_network]
 other = "检查系统网络..."
 
@@ -512,3 +545,45 @@ other = "解析白名单失败: {{.Error}}"
 
 [imagecheck.err_unapproved]
 other = "以下镜像不在白名单中，拒绝安装: {{.Images}}\n如需使用这些镜像，请通过 Griffino 插件中心提交审核。"
+
+[doctor.check_docker]
+other = "正在检查 Docker..."
+
+[doctor.docker_ok]
+other = "Docker 运行正常"
+
+[doctor.err_docker_fail]
+other = "Docker 不可用：{{.Error}}"
+
+[doctor.check_service]
+other = "正在检查 Griffino service 安装状态..."
+
+[doctor.service_installed]
+other = "Griffino service 已安装"
+
+[doctor.service_not_installed]
+other = "Griffino service 未安装（提示：执行 griffino service install 可设为登录自启）"
+
+[doctor.check_container]
+other = "正在检查 {{.Name}} 容器..."
+
+[doctor.container_ok]
+other = "{{.Name}} 容器运行正常"
+
+[doctor.container_fail]
+other = "{{.Name}} 容器未运行"
+
+[doctor.check_rabbitmq_health]
+other = "正在检查 RabbitMQ 健康状态..."
+
+[doctor.rabbitmq_health_ok]
+other = "RabbitMQ 健康检查通过"
+
+[doctor.rabbitmq_health_fail]
+other = "RabbitMQ 健康检查失败：{{.Error}}"
+
+[doctor.all_ok]
+other = "所有检查均通过"
+
+[doctor.has_issues]
+other = "部分检查未通过，请查看上方输出"

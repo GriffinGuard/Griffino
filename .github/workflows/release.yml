@@ -1,0 +1,204 @@
+name: release
+
+# Tag-triggered release: build cross-platform binaries, .deb/.rpm packages,
+# checksums, and update the Homebrew tap via GoReleaser.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write   # create the GitHub Release + upload assets
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # full history so GoReleaser can build the changelog
+
+      - uses: actions/setup-go@v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Publish the Homebrew cask only when a tap token is configured. Without
+      # it (e.g. when tag-testing in the private dev repo) the homebrew pipe is
+      # skipped so the rest of the release still succeeds.
+      - name: Compute GoReleaser skip flags
+        id: gr
+        run: |
+          if [ -n "${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}" ]; then
+            echo "skip=" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=--skip=homebrew" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: goreleaser/goreleaser-action@v7.2.2
+        with:
+          version: "~> v2"
+          args: release --clean ${{ steps.gr.outputs.skip }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Create a PAT with push access to GriffinGuard/homebrew-tap and add
+          # it as a repo secret named HOMEBREW_TAP_GITHUB_TOKEN.
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
+      # Build the Windows GUI binary (-tags gui → system-tray/menu support), with
+      # the Web UI that GoReleaser's before-hook already staged embedded. systray's
+      # Windows backend is pure Go, so this stays CGO-free and cross-builds here on
+      # Linux. The graphical installs (MSI/MSIX) ship this GUI build so `griffino
+      # tray` works; the headless zip stays for scoop/winget/manual.
+      - name: Build Windows GUI binary (tray)
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags gui \
+            -ldflags "-s -w -X main.version=${VER} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o gui/griffino.exe ./cmd/griffino
+
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: griffino-gui-windows
+          path: gui/griffino.exe
+          retention-days: 1
+
+  # Windows packages (MSI + MSIX). Both toolchains are Windows-only (WiX and
+  # makeappx), so this runs on a Windows runner AFTER the release exists and only
+  # attaches extra assets — it never disturbs the GoReleaser job. The MSI always
+  # builds; the MSIX builds only once tile assets + identity vars are present.
+  # The shared griffino.exe is the exact binary GoReleaser published (Web UI
+  # embedded). Submission to the Store is manual in Partner Center (which signs
+  # on ingestion); automated submission needs an Azure AD app this account cannot
+  # create. The .msix is unsigned on purpose; see scripts/sign-windows.sh for the
+  # SignPath/Azure signing seam.
+  windows:
+    needs: goreleaser
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # The GUI build (system tray) from the goreleaser job. Graphical installs
+      # (MSI + MSIX) ship this so `griffino tray` works; the headless zip on the
+      # release stays for scoop/winget/manual CLI use.
+      - name: Download the GUI Windows binary
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: griffino-gui-windows
+          path: winexe
+
+      # MSI via WiX Toolset v5 (v6/v7 require the paid OSMF EULA; v5 is free).
+      # WiX supports <Environment> (PATH) + <Shortcut>, so the installed griffino
+      # lands on PATH and gets a Start Menu entry. Unsigned — SmartScreen prompt.
+      - name: Build & upload Windows MSI
+        shell: bash
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          VER="${GITHUB_REF_NAME#v}"
+          MSI="griffino_${VER}_windows_amd64.msi"
+          scripts/build-msi.sh "$GITHUB_REF_NAME" winexe/griffino.exe "$MSI"
+          scripts/sign-windows.sh "$MSI"
+          SUM="$(sha256sum "$MSI" | awk '{print $1"  "$2}')"
+          gh release download "$GITHUB_REF_NAME" -p checksums.txt --output checksums.txt --clobber
+          printf '%s\n' "$SUM" >> checksums.txt
+          gh release upload "$GITHUB_REF_NAME" checksums.txt --clobber
+          gh release upload "$GITHUB_REF_NAME" "$MSI" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check MSIX assets & identity
+        id: guard
+        shell: bash
+        run: |
+          ready=true
+          if [ ! -f packaging/windows/msix/assets/Square150x150Logo.png ]; then
+            echo "::notice::MSIX tile assets not committed yet — skipping MSIX build."
+            ready=false
+          fi
+          # Identity must come from repo variables (build-msix.sh has no defaults).
+          if [ -z "$MSIX_IDENTITY_NAME" ] || [ -z "$MSIX_PUBLISHER" ] || [ -z "$MSIX_PUBLISHER_DISPLAY_NAME" ]; then
+            echo "::notice::MSIX identity variables not set (MSIX_IDENTITY_NAME/MSIX_PUBLISHER/MSIX_PUBLISHER_DISPLAY_NAME) — skipping MSIX build."
+            ready=false
+          fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+          MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}
+
+      - name: Locate Windows SDK tools (makeappx)
+        if: steps.guard.outputs.ready == 'true'
+        shell: pwsh
+        run: |
+          $sdk = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Directory |
+            Where-Object { Test-Path "$($_.FullName)\x64\makeappx.exe" } |
+            Sort-Object Name -Descending | Select-Object -First 1
+          if (-not $sdk) { throw 'makeappx.exe not found in Windows SDK' }
+          "$($sdk.FullName)\x64" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Build & upload MSIX
+        if: steps.guard.outputs.ready == 'true'
+        shell: bash
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          # The tiny autostart launcher is MSIX-only — build it here, never via GoReleaser.
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w" \
+            -o startup/griffino-startup.exe ./cmd/griffino-startup
+          MSIX="griffino_${VER}_windows_x64.msix"
+          scripts/build-msix.sh "$GITHUB_REF_NAME" winexe/griffino.exe startup/griffino-startup.exe "$MSIX"
+          scripts/sign-windows.sh "$MSIX"
+          SUM="$(sha256sum "$MSIX" | awk '{print $1"  "$2}')"
+          gh release download "$GITHUB_REF_NAME" -p checksums.txt --output checksums.txt --clobber
+          printf '%s\n' "$SUM" >> checksums.txt
+          gh release upload "$GITHUB_REF_NAME" checksums.txt --clobber
+          gh release upload "$GITHUB_REF_NAME" "$MSIX" --clobber
+          echo "::notice::MSIX attached to the release. Upload it to Partner Center manually to publish (Microsoft signs it on ingestion)."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+          MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}
+
+  # macOS .dmg (graphical install). Built on a macOS runner because the GUI build
+  # needs CGO (Cocoa). The bundled .app is a menu-bar agent (LSUIElement) that
+  # launches `griffino tray` — a tray icon supervising a headless daemon, menu
+  # opens the WebUI. Homebrew/tarball stay headless. Unsigned/un-notarized by
+  # current release policy (first launch: right-click → Open to pass Gatekeeper).
+  #
+  # needs the windows job too so the shared checksums.txt is mutated serially
+  # (GoReleaser writes it, windows appends MSI+MSIX, then macOS appends the dmg).
+  macos:
+    needs: [goreleaser, windows]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build GUI .app + .dmg
+        run: |
+          bash scripts/fetch-webui.sh
+          VER="${GITHUB_REF_NAME#v}"
+          CGO_ENABLED=1 go build -trimpath -tags gui \
+            -ldflags "-s -w -X main.version=${VER} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o griffino-gui ./cmd/griffino
+          packaging/macos/build-app.sh griffino-gui "$VER"
+          packaging/macos/build-dmg.sh dist/macos/Griffino.app "$VER"
+          DMG="Griffino-${VER}.dmg"
+          SUM="$(cd dist/macos && shasum -a 256 "$DMG")"
+          gh release download "$GITHUB_REF_NAME" -p checksums.txt --output checksums.txt --clobber
+          printf '%s\n' "$SUM" >> checksums.txt
+          gh release upload "$GITHUB_REF_NAME" checksums.txt --clobber
+          gh release upload "$GITHUB_REF_NAME" "dist/macos/$DMG" --clobber
+          echo "::notice::macOS .dmg attached (arm64, unsigned by current release policy). Universal/Intel support remains a follow-up."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

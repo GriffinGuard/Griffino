@@ -1,0 +1,125 @@
+# GoReleaser config — produces cross-platform binaries, archives, checksums,
+# Linux .deb/.rpm packages, and a Homebrew formula on each tagged release.
+#
+# Local validation:  goreleaser check
+# Dry run:           goreleaser release --snapshot --clean
+# Real release:      git tag v1.0.0 && git push --tags   (CI runs goreleaser)
+#
+# NOTE on the Docker dependency: Griffino's daemon orchestrates RabbitMQ/Redis
+# as containers, so Docker is a *runtime* dependency. There are several valid
+# providers (Docker Desktop, Docker Engine/docker-ce, colima, podman), so we
+# declare it *softly* (recommends/caveat) rather than as a hard dependency to
+# avoid forcing one provider or conflicting with another (e.g. docker.io vs
+# docker-ce on Debian). See comments at each packager below.
+version: 2
+
+project_name: griffino
+
+before:
+  hooks:
+    - go mod download
+    # Stage the prebuilt Web UI (pinned in internal/api/web/UI_VERSION) so it is
+    # embedded into the binary. A "placeholder" version is a no-op.
+    - bash scripts/fetch-webui.sh
+
+builds:
+  - id: griffino
+    main: ./cmd/griffino
+    binary: griffino
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }} -X main.date={{ .Date }}
+
+archives:
+  - id: griffino
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^docs:", "^test:", "^chore:"]
+
+# ── Linux .deb / .rpm ─────────────────────────────────────────────────────────
+# nfpm supports depends / recommends / suggests. We use `recommends` so apt
+# pulls Docker by default but the install does NOT hard-fail or conflict if the
+# user already runs docker-ce / podman. To make it mandatory instead, move the
+# entry to `dependencies:` (apt will then refuse to install without it).
+nfpms:
+  - id: griffino
+    package_name: griffino
+    homepage: https://github.com/GriffinGuard/Griffino
+    maintainer: GriffinGuard <noreply@griffino.dev>
+    description: Plugin orchestration platform with message-driven containers.
+    license: Apache-2.0
+    formats: [deb, rpm]
+    bindir: /usr/bin
+    recommends:
+      - docker.io        # Debian/Ubuntu docker package; soft dep
+    # dependencies:      # ← uncomment to make Docker mandatory on apt/dnf
+    #   - docker.io
+    scripts:
+      # Prints next-steps guidance (run `griffino service install`). The service
+      # is per-user, so the root-run postinstall can't enable it directly.
+      postinstall: scripts/nfpm/postinstall.sh
+
+# ── Homebrew tap (cask) ───────────────────────────────────────────────────────
+# Homebrew now prefers *casks* for prebuilt binaries (formulae are meant to build
+# from source), and GoReleaser deprecated `brews:` in favor of `homebrew_casks:`.
+# Requires a tap repo github.com/GriffinGuard/homebrew-tap (create once) and a
+# PAT with push access exposed to CI as HOMEBREW_TAP_GITHUB_TOKEN.
+# Install for users:  brew install GriffinGuard/tap/griffino
+#
+# Docker dependency choice:
+#   - Default uses `caveats` (soft): install succeeds and prints a note.
+#   - To HARD-require Docker Desktop, uncomment the `dependencies: - cask: docker`
+#     below. Trade-off: forces Docker Desktop even for colima/podman users.
+homebrew_casks:
+  - name: griffino
+    repository:
+      owner: GriffinGuard
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/GriffinGuard/Griffino
+    description: Plugin orchestration platform with message-driven containers.
+    # dependencies:
+    #   - cask: docker        # hard-require Docker Desktop
+    caveats: |
+      Griffino's daemon runs RabbitMQ and Redis as Docker containers, so Docker
+      must be installed and running before `griffino daemon`:
+        - Docker Desktop:  brew install --cask docker
+        - or colima:       brew install colima docker && colima start
+      With colima, export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
+    # Remove the Gatekeeper quarantine flag so the unsigned binary runs.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr",
+              args: ["-dr", "com.apple.quarantine", "#{staged_path}/griffino"]
+          end
+
+# Release target is auto-detected from the git origin of the checkout, so the
+# same config publishes to GriffinGuard/Griffino in the public CI and to the
+# private dev repo when tagged there for testing. Pin `github.owner/name` here
+# only if you need to override that.
+release:
+  prerelease: auto

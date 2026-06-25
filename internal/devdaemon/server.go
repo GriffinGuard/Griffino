@@ -18,22 +18,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"time"
-	"log/slog"
-	
+
 	griffinoi18n "github.com/GriffinGuard/Griffino/internal/i18n"
 	"github.com/GriffinGuard/Griffino/internal/progress"
-	"github.com/GriffinGuard/Griffino/internal/util"
 	"github.com/GriffinGuard/Griffino/internal/service"
 	"github.com/GriffinGuard/Griffino/internal/store"
+	"github.com/GriffinGuard/Griffino/internal/util"
 	"github.com/GriffinGuard/Griffino/pkg/manifest"
 )
 
-// Server 是运行在 daemon 进程内的 Unix Socket 服务器。
-// 它持有 daemon 已经初始化好的 store 和 pluginSvc，
-// 因此所有操作都在 daemon 进程内完成，不会产生 DB 锁冲突。
+// Server is a Unix Socket server running inside the daemon process.
+// It holds already-initialized store and pluginSvc from the daemon,
+// so all operations run in-process without DB lock conflicts / 运行在 daemon 进程内的 Unix Socket 服务器，持有已初始化的 store 和 pluginSvc，不会产生 DB 锁冲突.
 type Server struct {
 	socketPath string
 	store      *store.Store
@@ -41,7 +41,7 @@ type Server struct {
 	listener   net.Listener
 }
 
-// NewServer 创建 Server 实例。socketPath 通常来自 config.SocketPath()。
+// NewServer creates a Server instance. socketPath typically comes from config.SocketPath() / 创建 Server 实例，socketPath 通常来自 config.SocketPath().
 func NewServer(socketPath string, st *store.Store, svc *service.PluginService) *Server {
 	return &Server{
 		socketPath: socketPath,
@@ -50,10 +50,10 @@ func NewServer(socketPath string, st *store.Store, svc *service.PluginService) *
 	}
 }
 
-// Start 开始监听 socket，阻塞直到 ctx 取消。
-// 应在独立 goroutine 中调用。
+// Start begins listening on the socket, blocking until ctx is cancelled. Call it in a
+// dedicated goroutine / 开始监听 socket，阻塞直到 ctx 取消；应在独立 goroutine 中调用.
 func (s *Server) Start(ctx context.Context) error {
-	// 清理上次可能残留的 socket 文件
+	// clean up any socket file left over from last time / 清理上次残留的 socket 文件
 	_ = os.Remove(s.socketPath)
 
 	ln, err := net.Listen("unix", s.socketPath)
@@ -66,7 +66,8 @@ func (s *Server) Start(ctx context.Context) error {
 	progress.Log("", griffinoi18n.T(griffinoi18n.MsgDevDaemonListening,
 		map[string]interface{}{"Path": s.socketPath}))
 
-	// ctx 取消时关闭 listener，使 Accept 返回错误退出循环
+	// close the listener when ctx is cancelled, so Accept returns an error and the loop exits
+	// ctx 取消时关闭 listener，使 Accept 报错退出循环
 	go func() {
 		<-ctx.Done()
 		_ = ln.Close()
@@ -77,7 +78,7 @@ func (s *Server) Start(ctx context.Context) error {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			// ctx 取消导致的关闭，正常退出
+			// closed due to ctx cancellation: normal exit / ctx 取消导致的关闭，正常退出
 			select {
 			case <-ctx.Done():
 				return nil
@@ -89,7 +90,8 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 }
 
-// handleConn 处理单个连接：读取一个请求，执行操作，写回响应，关闭连接。
+// handleConn handles a single connection: read one request, perform the action, write the
+// response, close the connection / 处理单个连接：读请求、执行、写回响应、关闭.
 func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
@@ -121,6 +123,7 @@ func (s *Server) handleInstall(ctx context.Context, conn net.Conn, raw json.RawM
 		return
 	}
 
+	// path-traversal check (CLI already made it absolute; this is a second line of defense)
 	// 路径穿越校验（CLI 侧已转绝对路径，这里做第二道防御）
 	if err := util.ValidatePluginDir(p.Path); err != nil {
 		s.writeError(conn, "path validation failed: "+err.Error())
@@ -139,7 +142,22 @@ func (s *Server) handleInstall(ctx context.Context, conn net.Conn, raw json.RawM
 
 	existing, _ := s.store.GetPlugin(pkg.Manifest.ID)
 	if existing != nil {
-		s.writeError(conn, fmt.Sprintf("plugin already installed: %s (status: %s)", pkg.Manifest.ID, existing.Status))
+		if !p.Force {
+			s.writeError(conn, fmt.Sprintf("plugin already installed: %s (status: %s); use --force to overwrite", pkg.Manifest.ID, existing.Status))
+			return
+		}
+		// Overwrite in place: stop if running, preserve AdminConfig, re-point at the new dir / 就地覆盖：运行中先停、保留 AdminConfig、切到新目录
+		if _, err := s.pluginSvc.ReinstallDevPlugin(ctx, pkg, p.Path, existing); err != nil {
+			s.writeError(conn, err.Error())
+			return
+		}
+		data, _ := json.Marshal(InstallData{
+			ID:            pkg.Manifest.ID,
+			Name:          pkg.Manifest.Name.Default,
+			PluginVersion: pkg.Manifest.PluginVersion,
+			Overwritten:   true,
+		})
+		s.writeOK(conn, data)
 		return
 	}
 
@@ -157,8 +175,8 @@ func (s *Server) handleInstall(ctx context.Context, conn net.Conn, raw json.RawM
 	}
 
 	data, _ := json.Marshal(InstallData{
-		ID:      pkg.Manifest.ID,
-		Name:    pkg.Manifest.Name.Default,
+		ID:            pkg.Manifest.ID,
+		Name:          pkg.Manifest.Name.Default,
 		PluginVersion: pkg.Manifest.PluginVersion,
 	})
 	s.writeOK(conn, data)
@@ -217,20 +235,20 @@ func (s *Server) handleUninstall(ctx context.Context, conn net.Conn, raw json.Ra
 		return
 	}
 
-	// 插件正在运行时的处理
+	// handle the case where the plugin is running / 插件正在运行时的处理
 	if instance.Status == store.StatusRunning {
 		if !p.Force {
 			s.writeError(conn, fmt.Sprintf("plugin %s is running, stop it first or use -r", p.PluginID))
 			return
 		}
-		// -r：先执行完整 stop 流程
+		// -r: run the full stop flow first / -r：先执行完整 stop 流程
 		if err := s.pluginSvc.StopDevPlugin(ctx, p.PluginID); err != nil {
 			s.writeError(conn, fmt.Sprintf("failed to stop plugin: %s", err.Error()))
 			return
 		}
 	}
 
-	// 删除 DB 记录
+	// delete the DB record / 删除 DB 记录
 	if err := s.store.DeletePlugin(p.PluginID); err != nil {
 		s.writeError(conn, fmt.Sprintf("failed to delete plugin record: %s", err.Error()))
 		return

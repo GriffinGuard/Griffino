@@ -19,20 +19,20 @@ import (
 	"time"
 )
 
-// PluginDTO 对外暴露的插件信息，过滤敏感字段
+// PluginDTO is the public plugin info DTO, with sensitive fields stripped / 对外暴露的插件信息，过滤敏感字段.
 type PluginDTO struct {
-	ID          string           `json:"id"`
-	PluginDir   string           `json:"pluginDir"`
+	ID          string             `json:"id"`
+	PluginDir   string             `json:"pluginDir"`
 	Status      store.PluginStatus `json:"status"`
-	InstalledAt time.Time        `json:"installedAt"`
-	IsDevPlugin bool             `json:"isDevPlugin,omitempty"`
-	ConfigDirty bool             `json:"configDirty,omitempty"`
-	FailStage   string           `json:"failStage,omitempty"`
-	FailReason  string           `json:"failReason,omitempty"`
-	RuntimeInfo *RuntimeInfoDTO  `json:"runtimeInfo,omitempty"`
+	InstalledAt time.Time          `json:"installedAt"`
+	IsDevPlugin bool               `json:"isDevPlugin,omitempty"`
+	ConfigDirty bool               `json:"configDirty,omitempty"`
+	FailStage   string             `json:"failStage,omitempty"`
+	FailReason  string             `json:"failReason,omitempty"`
+	RuntimeInfo *RuntimeInfoDTO    `json:"runtimeInfo,omitempty"`
 }
 
-// RuntimeInfoDTO 过滤掉密码字段
+// RuntimeInfoDTO strips password fields / 过滤掉密码字段.
 type RuntimeInfoDTO struct {
 	Containers   map[string]string `json:"containers"`
 	Network      string            `json:"network"`

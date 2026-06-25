@@ -1,0 +1,16 @@
+# golangci-lint config (v2 schema). Intentionally lenient to start — the `lint`
+# CI job is non-blocking. Tighten the enabled set and add gofmt enforcement once
+# the repo has had a one-time `gofmt -w` cleanup (see follow-up).
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+formatters:
+  enable:
+    - gofmt

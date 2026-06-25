@@ -20,7 +20,7 @@ import (
 	"log/slog"
 )
 
-// multiHandler 将日志同时发送到多个 handler（用于 devMode）
+// multiHandler sends logs to multiple handlers simultaneously (used in devMode) / 将日志同时发送到多个 handler（用于 devMode）
 type multiHandler struct {
 	handlers []slog.Handler
 }
@@ -63,10 +63,10 @@ func (h *multiHandler) WithGroup(name string) slog.Handler {
 	return &multiHandler{handlers: handlers}
 }
 
-// routingHandler daemon 模式下的路由 handler：
-//   - 所有日志 → mainLog（griffino.log）
-//   - Warn/Error + 有 pluginID attr → pluginErrLog（plugin-error.log）
-//   - Warn/Error + 无 pluginID attr → systemErrLog（griffino-error.log）
+// routingHandler is the daemon-mode routing handler:
+//   - All logs → mainLog (griffino.log)
+//   - Warn/Error + pluginID attr → pluginErrLog (plugin-error.log)
+//   - Warn/Error + no pluginID attr → systemErrLog (griffino-error.log) / daemon 模式下的路由 handler
 type routingHandler struct {
 	mainHandler      slog.Handler
 	systemErrHandler slog.Handler
@@ -88,12 +88,12 @@ func (h *routingHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *routingHandler) Handle(ctx context.Context, r slog.Record) error {
-	// 所有日志写入 griffino.log
+	// All logs go to griffino.log / 所有日志写入 griffino.log
 	if h.mainHandler.Enabled(ctx, r.Level) {
 		_ = h.mainHandler.Handle(ctx, r.Clone())
 	}
 
-	// Warn/Error 额外路由
+	// Warn/Error additional routing / Warn/Error 额外路由
 	if r.Level >= slog.LevelWarn {
 		if hasPluginID(r) {
 			_ = h.pluginErrHandler.Handle(ctx, r.Clone())
@@ -120,7 +120,7 @@ func (h *routingHandler) WithGroup(name string) slog.Handler {
 	}
 }
 
-// hasPluginID 检查 record 的 attrs 里是否有 pluginID 字段
+// hasPluginID checks whether the record's attrs contain a pluginID field / 检查 record 的 attrs 里是否有 pluginID 字段
 func hasPluginID(r slog.Record) bool {
 	found := false
 	r.Attrs(func(a slog.Attr) bool {

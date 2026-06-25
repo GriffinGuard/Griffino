@@ -1,0 +1,1942 @@
+basePath: /api/v1
+definitions:
+  github_com_GriffinGuard_Griffino_internal_router.ProviderEntry:
+    properties:
+      interfaceRef:
+        description: |-
+          InterfaceRef is the provider's standard interface (e.g.
+          "griffino.interfaces.ai.chat@1.0.0"), filled server-side from the provider's
+          manifest. Providers are treated as interchangeable only when their interface
+          major versions are compatible / provider 的标准接口，用于互换前的主版本兼容校验.
+        type: string
+      providerId:
+        type: string
+      providerTopic:
+        type: string
+      weight:
+        type: integer
+    type: object
+  github_com_GriffinGuard_Griffino_internal_router.Route:
+    properties:
+      capabilityType:
+        type: string
+      pluginId:
+        type: string
+      providers:
+        items:
+          $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_router.ProviderEntry'
+        type: array
+      slot:
+        type: string
+      strategy:
+        description: '"fallback" | "round_robin"'
+        type: string
+    type: object
+  github_com_GriffinGuard_Griffino_internal_store.PluginStatus:
+    enum:
+    - pending_setup
+    - ready
+    - pulling
+    - starting
+    - running
+    - stopped
+    - failed
+    type: string
+    x-enum-comments:
+      StatusFailed: Start failed / 启动失败
+      StatusPendingSetup: Manifest downloaded, config not yet done / 元文件已下载，未完成配置
+      StatusPulling: Pulling images / 正在拉取镜像
+      StatusReady: Config done, never started / 配置完成，从未启动
+      StatusRunning: Running / 运行中
+      StatusStarting: Images ready, container starting / 镜像就绪，容器启动中
+      StatusStopped: Stopped / 已停止
+    x-enum-varnames:
+    - StatusPendingSetup
+    - StatusReady
+    - StatusPulling
+    - StatusStarting
+    - StatusRunning
+    - StatusStopped
+    - StatusFailed
+  github_com_GriffinGuard_Griffino_internal_store.SecurityPolicies:
+    properties:
+      lockoutDurationMinutes:
+        description: LockoutDurationMinutes is how long the account is locked after
+          too many failures (default 15).
+        type: integer
+      maxLoginAttempts:
+        description: MaxLoginAttempts is the number of consecutive failures before
+          lockout (default 5).
+        type: integer
+      sessionTtlHours:
+        description: SessionTTLHours is how long a session token stays valid (default
+          168 = 7 days).
+        type: integer
+    type: object
+  github_com_GriffinGuard_Griffino_internal_taskscheduler.Blueprint:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: string
+      metadata:
+        $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_taskscheduler.BlueprintMeta'
+      name:
+        type: string
+      nodes:
+        items:
+          $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_taskscheduler.Node'
+        type: array
+      trigger:
+        $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_taskscheduler.Trigger'
+      updatedAt:
+        type: string
+      userId:
+        type: string
+    type: object
+  github_com_GriffinGuard_Griffino_internal_taskscheduler.BlueprintMeta:
+    properties:
+      flowPositions:
+        additionalProperties:
+          $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_taskscheduler.FlowPosition'
+        type: object
+    type: object
+  github_com_GriffinGuard_Griffino_internal_taskscheduler.FlowPosition:
+    properties:
+      x:
+        type: number
+      "y":
+        type: number
+    type: object
+  github_com_GriffinGuard_Griffino_internal_taskscheduler.Node:
+    properties:
+      capabilityId:
+        description: 'Built-in: if/loop/input/output / 内置节点'
+        type: string
+      id:
+        type: string
+      nextNodes:
+        items:
+          type: string
+        type: array
+      pluginId:
+        description: '"__builtin__" for built-in nodes / 表示内置节点'
+        type: string
+      requestTopicPattern:
+        description: Built-in nodes reuse this for expressions/variable declarations
+          / 内置节点复用此字段存表达式/变量声明
+        type: string
+      timeoutMs:
+        type: integer
+    type: object
+  github_com_GriffinGuard_Griffino_internal_taskscheduler.Task:
+    properties:
+      activeBranches:
+        description: |-
+          ─── Parallel execution state (W5) ──────────────────────────────────────
+          ActiveBranches: number of currently live parallel branches. Starts at 1 when a Task is created;
+          += N-1 when a node fans out to N NextNodes;
+          -= 1 when a branch reaches a terminal leaf, triggering completeTask when it hits zero;
+          net -= k-1 when a join absorbs k incoming edges / 当前存活的并行分支数
+        type: integer
+      activeNodes:
+        additionalProperties:
+          type: string
+        description: |-
+          ActiveNodes: in-flight plugin node → its reply deadline. Replaces the old single Deadline;
+          in parallel, multiple in-flight nodes can coexist. The watchdog scans this table, marking the Task as timed out if any entry expires / 在途插件节点及其回复截止时间
+        type: object
+      blueprintId:
+        type: string
+      context:
+        additionalProperties: {}
+        description: 'Pipeline accumulated variables, merged after each step (concurrent
+          writes: last-write-wins) / 流水线累积变量'
+        type: object
+      createdAt:
+        type: string
+      currentNodeId:
+        description: Most recently advanced node (best-effort, observation-only; not
+          unique in parallel) / 最近推进到的节点
+        type: string
+      displayName:
+        type: string
+      failReason:
+        type: string
+      id:
+        type: string
+      joinState:
+        additionalProperties:
+          type: integer
+        description: |-
+          JoinState: join node ID → current arrival count. Resets to 0 when arrivals reach the static in-degree,
+          supporting join re-entry inside loops / join 节点 ID → 当前已到达的分支数
+        type: object
+      loopState:
+        additionalProperties:
+          type: integer
+        description: 'key: nodeId, value: current iteration count / 当前迭代次数'
+        type: object
+      status:
+        $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_taskscheduler.TaskStatus'
+      triggerPluginId:
+        description: Triggering plugin ID, used for callbacks / 触发方插件 ID，用于回调
+        type: string
+      updatedAt:
+        type: string
+      userId:
+        type: string
+    type: object
+  github_com_GriffinGuard_Griffino_internal_taskscheduler.TaskStatus:
+    enum:
+    - running
+    - completed
+    - failed
+    type: string
+    x-enum-varnames:
+    - TaskStatusRunning
+    - TaskStatusCompleted
+    - TaskStatusFailed
+  github_com_GriffinGuard_Griffino_internal_taskscheduler.Trigger:
+    properties:
+      eventType:
+        type: string
+      pluginId:
+        description: Empty means any source / 为空表示任意来源
+        type: string
+    type: object
+  internal_api.AppError:
+    properties:
+      code:
+        $ref: '#/definitions/internal_api.ErrorCode'
+      detail: {}
+      message:
+        type: string
+    type: object
+  internal_api.ErrorCode:
+    enum:
+    - PLUGIN_NOT_FOUND
+    - PLUGIN_ALREADY_INSTALLED
+    - PLUGIN_ALREADY_RUNNING
+    - PLUGIN_NOT_RUNNING
+    - PLUGIN_NOT_CONFIGURED
+    - PLUGIN_INVALID_STATE
+    - PLUGIN_START_FAILED
+    - PLUGIN_STOP_FAILED
+    - PLUGIN_UNINSTALL_FAILED
+    - PLUGIN_LOAD_FAILED
+    - PLUGIN_SAVE_FAILED
+    - PLUGIN_IMAGE_NOT_ALLOWED
+    - PLUGIN_LIST_FAILED
+    - REGISTRY_FETCH_FAILED
+    - REGISTRY_DOWNLOAD_FAILED
+    - REGISTRY_VERSION_NOT_FOUND
+    - PLUGIN_ALREADY_UP_TO_DATE
+    - PLUGIN_UPGRADE_FAILED
+    - AUTH_INVALID_REQUEST
+    - AUTH_INVALID_CREDENTIALS
+    - AUTH_TOKEN_INVALID
+    - AUTH_NOT_LOGGED_IN
+    - AUTH_PERMISSION_DENIED
+    - AUTH_RATE_LIMITED
+    - AUTH_SESSION_FAILED
+    - AUTH_PASSWORD_TOO_SHORT
+    - AUTH_WRONG_PASSWORD
+    - AUTH_PASSWORD_HASH_FAILED
+    - AUTH_PASSWORD_SAVE_FAILED
+    - USER_NOT_FOUND
+    - USER_ALREADY_EXISTS
+    - USER_INVALID_REQUEST
+    - USER_CANNOT_SELF_DISABLE
+    - USER_CANNOT_SELF_DELETE
+    - USER_SAVE_FAILED
+    - USER_DELETE_FAILED
+    - USER_LIST_FAILED
+    - ROUTE_INVALID_REQUEST
+    - ROUTE_FETCH_FAILED
+    - ROUTE_SAVE_FAILED
+    - BLUEPRINT_NOT_FOUND
+    - BLUEPRINT_INVALID_REQUEST
+    - BLUEPRINT_SAVE_FAILED
+    - BLUEPRINT_DELETE_FAILED
+    - BLUEPRINT_FETCH_FAILED
+    - BLUEPRINT_PORT_MISMATCH
+    - ACTION_NOT_FOUND
+    - ACTION_INVALID_REQUEST
+    - ACTION_RATE_LIMITED
+    - ACTION_SEND_FAILED
+    - USER_CONFIG_INVALID_REQUEST
+    - USER_CONFIG_FETCH_FAILED
+    - USER_CONFIG_SAVE_FAILED
+    - SYSTEM_NOT_INITIALIZED
+    - SYSTEM_INTERNAL_ERROR
+    - PLUGIN_LOG_NOT_FOUND
+    - WIDGET_NOT_FOUND
+    - WIDGET_DATA_FAILED
+    - DASHBOARD_INVALID_REQUEST
+    - DASHBOARD_SAVE_FAILED
+    - TASK_NOT_FOUND
+    - TASK_FETCH_FAILED
+    - SETTINGS_INVALID_REQUEST
+    - SETTINGS_SAVE_FAILED
+    - SETTINGS_FETCH_FAILED
+    - SESSION_NOT_FOUND
+    - SESSION_LIST_FAILED
+    - USERNAME_TAKEN
+    - USERNAME_INVALID
+    - USER_ALREADY_DISABLED
+    - USER_ALREADY_ENABLED
+    - CANNOT_DISABLE_SELF
+    - CANNOT_DELETE_LAST_ADMIN
+    - CANNOT_DEMOTE_LAST_ADMIN
+    - ACCOUNT_DISABLED
+    - PASSWORD_REUSE_FORBIDDEN
+    - EMAIL_INVALID
+    - EMAIL_ALREADY_VERIFIED
+    - SETUP_ALREADY_COMPLETED
+    - SETUP_NOT_COMPLETED
+    - LICENSE_NOT_ACCEPTED
+    - ADMIN_ALREADY_EXISTS
+    - SMTP_CONNECTION_FAILED
+    - SMTP_AUTH_FAILED
+    - SMTP_SEND_FAILED
+    - CONFIG_KEY_INVALID
+    - CONFIG_VALUE_INVALID
+    type: string
+    x-enum-varnames:
+    - ErrPluginNotFound
+    - ErrPluginAlreadyInstalled
+    - ErrPluginAlreadyRunning
+    - ErrPluginNotRunning
+    - ErrPluginNotConfigured
+    - ErrPluginInvalidState
+    - ErrPluginStartFailed
+    - ErrPluginStopFailed
+    - ErrPluginUninstallFailed
+    - ErrPluginLoadFailed
+    - ErrPluginSaveFailed
+    - ErrPluginImageNotAllowed
+    - ErrPluginListFailed
+    - ErrRegistryFetchFailed
+    - ErrRegistryDownloadFailed
+    - ErrRegistryVersionNotFound
+    - ErrPluginAlreadyUpToDate
+    - ErrPluginUpgradeFailed
+    - ErrAuthInvalidRequest
+    - ErrAuthInvalidCredentials
+    - ErrAuthTokenInvalid
+    - ErrAuthNotLoggedIn
+    - ErrAuthPermissionDenied
+    - ErrAuthRateLimited
+    - ErrAuthSessionFailed
+    - ErrAuthPasswordTooShort
+    - ErrAuthWrongPassword
+    - ErrAuthPasswordHashFailed
+    - ErrAuthPasswordSaveFailed
+    - ErrUserNotFound
+    - ErrUserAlreadyExists
+    - ErrUserInvalidRequest
+    - ErrUserCannotSelfDisable
+    - ErrUserCannotSelfDelete
+    - ErrUserSaveFailed
+    - ErrUserDeleteFailed
+    - ErrUserListFailed
+    - ErrRouteInvalidRequest
+    - ErrRouteFetchFailed
+    - ErrRouteSaveFailed
+    - ErrBlueprintNotFound
+    - ErrBlueprintInvalidRequest
+    - ErrBlueprintSaveFailed
+    - ErrBlueprintDeleteFailed
+    - ErrBlueprintFetchFailed
+    - ErrBlueprintPortMismatch
+    - ErrActionNotFound
+    - ErrActionInvalidRequest
+    - ErrActionRateLimited
+    - ErrActionSendFailed
+    - ErrUserConfigInvalidRequest
+    - ErrUserConfigFetchFailed
+    - ErrUserConfigSaveFailed
+    - ErrSystemNotInitialized
+    - ErrSystemInternal
+    - ErrPluginLogNotFound
+    - ErrWidgetNotFound
+    - ErrWidgetDataFailed
+    - ErrDashboardInvalidRequest
+    - ErrDashboardSaveFailed
+    - ErrTaskNotFound
+    - ErrTaskFetchFailed
+    - ErrSettingsInvalidRequest
+    - ErrSettingsSaveFailed
+    - ErrSettingsFetchFailed
+    - ErrSessionNotFound
+    - ErrSessionListFailed
+    - ErrUsernameTaken
+    - ErrUsernameInvalid
+    - ErrUserAlreadyDisabled
+    - ErrUserAlreadyEnabled
+    - ErrCannotDisableSelf
+    - ErrCannotDeleteLastAdmin
+    - ErrCannotDemoteLastAdmin
+    - ErrAccountDisabled
+    - ErrPasswordReuseForbidden
+    - ErrEmailInvalid
+    - ErrEmailAlreadyVerified
+    - ErrSetupAlreadyCompleted
+    - ErrSetupNotCompleted
+    - ErrLicenseNotAccepted
+    - ErrAdminAlreadyExists
+    - ErrSMTPConnectionFailed
+    - ErrSMTPAuthFailed
+    - ErrSMTPSendFailed
+    - ErrConfigKeyInvalid
+    - ErrConfigValueInvalid
+  internal_api.PluginDTO:
+    properties:
+      configDirty:
+        type: boolean
+      failReason:
+        type: string
+      failStage:
+        type: string
+      id:
+        type: string
+      installedAt:
+        type: string
+      isDevPlugin:
+        type: boolean
+      pluginDir:
+        type: string
+      runtimeInfo:
+        $ref: '#/definitions/internal_api.RuntimeInfoDTO'
+      status:
+        $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_store.PluginStatus'
+    type: object
+  internal_api.RuntimeInfoDTO:
+    properties:
+      containers:
+        additionalProperties:
+          type: string
+        type: object
+      network:
+        type: string
+      rabbitmqUser:
+        type: string
+      redisUser:
+        type: string
+    type: object
+host: 127.0.0.1:7070
+info:
+  contact: {}
+  description: Local-only control-plane API for the Griffino daemon. The API binds
+    to 127.0.0.1:7070 and is consumed by the embedded web console. All non-public
+    endpoints require a bearer session token obtained from POST /auth/login.
+  title: Griffino API
+  version: "1.0"
+paths:
+  /admin/metrics:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get admin dashboard metrics
+      tags:
+      - Admin
+  /admin/settings/security:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_store.SecurityPolicies'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get security policies
+      tags:
+      - Settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: security policies
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_store.SecurityPolicies'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update security policies
+      tags:
+      - Settings
+  /audit-logs:
+    get:
+      parameters:
+      - description: Page number (1-based)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20, max 100)
+        in: query
+        name: pageSize
+        type: integer
+      - description: Filter by actor username
+        in: query
+        name: actor
+        type: string
+      - description: Filter by action type
+        in: query
+        name: action
+        type: string
+      - description: Filter by resource
+        in: query
+        name: resource
+        type: string
+      - description: Start time (ISO 8601)
+        in: query
+        name: from
+        type: string
+      - description: End time (ISO 8601)
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: List audit logs
+      tags:
+      - Admin
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: username and password
+        in: body
+        name: credentials
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      summary: Log in
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Log out
+      tags:
+      - Auth
+  /auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - Auth
+  /auth/password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: oldPassword and newPassword
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Change password
+      tags:
+      - Auth
+  /blueprints:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_taskscheduler.Blueprint'
+              type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: List blueprints
+      tags:
+      - Blueprints
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: name, trigger, nodes, metadata
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_taskscheduler.Blueprint'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create a blueprint
+      tags:
+      - Blueprints
+  /blueprints/{id}:
+    delete:
+      parameters:
+      - description: Blueprint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Delete a blueprint
+      tags:
+      - Blueprints
+    get:
+      parameters:
+      - description: Blueprint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_taskscheduler.Blueprint'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get a blueprint
+      tags:
+      - Blueprints
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Blueprint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: name, trigger, nodes, metadata
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_taskscheduler.Blueprint'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update a blueprint
+      tags:
+      - Blueprints
+  /me/dashboard:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get dashboard layout
+      tags:
+      - Dashboard
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: dashboard layout payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Save dashboard layout
+      tags:
+      - Dashboard
+  /me/sessions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: List active sessions
+      tags:
+      - Sessions
+  /me/sessions/{sessionID}:
+    delete:
+      parameters:
+      - description: Session ID to revoke
+        in: path
+        name: sessionID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Revoke a session
+      tags:
+      - Sessions
+  /plugins:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/internal_api.PluginDTO'
+              type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: List installed plugins
+      tags:
+      - Plugins
+  /plugins/{id}:
+    delete:
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Uninstall a plugin
+      tags:
+      - Plugins
+    get:
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_api.PluginDTO'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get a plugin
+      tags:
+      - Plugins
+  /plugins/{id}/actions/{actionId}:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Action ID
+        in: path
+        name: actionId
+        required: true
+        type: string
+      - description: Action payload (passed through to the plugin)
+        in: body
+        name: payload
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Trigger a plugin action
+      tags:
+      - Plugins
+  /plugins/{id}/config:
+    get:
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get plugin admin config schema and values
+      tags:
+      - Plugins
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: config map and action (save | save_and_start | save_and_restart)
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Save plugin admin config
+      tags:
+      - Plugins
+  /plugins/{id}/start:
+    post:
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Start a plugin
+      tags:
+      - Plugins
+  /plugins/{id}/stop:
+    post:
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Stop a plugin
+      tags:
+      - Plugins
+  /plugins/{id}/user-config:
+    get:
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get plugin user-config schema
+      tags:
+      - Plugins
+  /plugins/{id}/user-config/values:
+    get:
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get plugin user-config values
+      tags:
+      - Plugins
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: config values keyed by schema key
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Set plugin user-config values
+      tags:
+      - Plugins
+  /plugins/{id}/widgets:
+    get:
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: List plugin widgets
+      tags:
+      - Widgets
+  /plugins/{id}/widgets/{widgetId}/data:
+    get:
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Widget ID
+        in: path
+        name: widgetId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get widget data
+      tags:
+      - Widgets
+  /plugins/capabilities:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: List plugin capabilities
+      tags:
+      - Capabilities
+  /plugins/triggers:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: List plugin triggers
+      tags:
+      - Capabilities
+  /registry/plugins:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: List registry plugins
+      tags:
+      - Registry
+  /registry/plugins/{id}:
+    get:
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get a registry plugin
+      tags:
+      - Registry
+  /registry/plugins/{id}/install:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: optional version (defaults to latest)
+        in: body
+        name: body
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Install a registry plugin
+      tags:
+      - Registry
+  /registry/plugins/{id}/upgrade:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: optional version (defaults to latest)
+        in: body
+        name: body
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Upgrade a registry plugin
+      tags:
+      - Registry
+  /setup/admin:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: username (optional, defaults to admin) and password
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      summary: Create first admin
+      tags:
+      - Setup
+  /setup/complete:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Complete setup
+      tags:
+      - Setup
+  /setup/reset:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Reset setup wizard
+      tags:
+      - Setup
+  /setup/state:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      summary: Get pre-login setup state
+      tags:
+      - Setup
+  /setup/status:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get setup status
+      tags:
+      - Setup
+  /system/smtp:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get SMTP configuration
+      tags:
+      - System
+    put:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update SMTP configuration
+      tags:
+      - System
+  /system/smtp/test:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: toEmail
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Test SMTP configuration
+      tags:
+      - System
+  /system/status:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get system status
+      tags:
+      - System
+  /tasks:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_taskscheduler.Task'
+              type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: List tasks
+      tags:
+      - Tasks
+  /tasks/{id}:
+    get:
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_taskscheduler.Task'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get a task
+      tags:
+      - Tasks
+  /users:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: username
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create a user
+      tags:
+      - Users
+  /users/{username}:
+    delete:
+      parameters:
+      - description: Username
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Delete a user
+      tags:
+      - Users
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Username
+        in: path
+        name: username
+        required: true
+        type: string
+      - description: disabled and resetPassword flags
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update a user
+      tags:
+      - Users
+  /users/{username}/profile:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Username
+        in: path
+        name: username
+        required: true
+        type: string
+      - description: email and displayName
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update a user profile
+      tags:
+      - Users
+  /users/routes:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/github_com_GriffinGuard_Griffino_internal_router.Route'
+              type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get user routes
+      tags:
+      - Routes
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: routes array
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.AppError'
+      security:
+      - BearerAuth: []
+      summary: Set user routes
+      tags:
+      - Routes
+securityDefinitions:
+  BearerAuth:
+    description: Session token issued by POST /auth/login, sent as "Bearer <token>".
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

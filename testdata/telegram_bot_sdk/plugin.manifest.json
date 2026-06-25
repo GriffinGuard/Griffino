@@ -26,7 +26,7 @@
           "responseTopicPatternHint": "event.cc.griffino.telegram_bot.notification_result.v1"
         }
       },
-      "standardInterfaceRef": "griffino.interfaces.messaging.notify@1.0.0",
+      "standardInterfaceRef": "griffino.interfaces.messaging.notification@1.0.0",
       "defaultTimeoutMilliseconds": 30000
     },
     {

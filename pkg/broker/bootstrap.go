@@ -19,23 +19,23 @@ import (
 	"log/slog"
 )
 
-// SharedExchanges 系统级共享 exchange，由 daemon 启动时以 admin 身份统一声明
+// SharedExchanges lists system-level shared exchanges, declared by the daemon at startup with admin privileges / 系统级共享 exchange，由 daemon 启动时以 admin 身份统一声明
 var SharedExchanges = []struct {
 	Name    string
 	Kind    string
 	Durable bool
 }{
 	{"griffino.plugins", "topic", true}, // 插件间通信
-	{"griffino.router",  "topic", true}, // Router 转发
+	{"griffino.router", "topic", true},  // Router 转发
 }
 
-// Bootstrap 声明所有系统级共享 exchange，在系统服务就绪后调用一次
+// Bootstrap declares all system-level shared exchanges, called once after system services are ready / 声明所有系统级共享 exchange，系统服务就绪后调用一次
 func Bootstrap(client *Client, vhost string) error {
-    for _, ex := range SharedExchanges {
-        slog.Info("declaring shared exchange", "name", ex.Name)
-        if err := client.DeclareExchange(vhost, ex.Name, ex.Kind, ex.Durable); err != nil {
-            return fmt.Errorf("failed to declare exchange %s: %w", ex.Name, err)
-        }
-    }
-    return nil
+	for _, ex := range SharedExchanges {
+		slog.Info("declaring shared exchange", "name", ex.Name)
+		if err := client.DeclareExchange(vhost, ex.Name, ex.Kind, ex.Durable); err != nil {
+			return fmt.Errorf("failed to declare exchange %s: %w", ex.Name, err)
+		}
+	}
+	return nil
 }

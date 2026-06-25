@@ -14,7 +14,7 @@
 
 package progress
 
-// LogLevel 日志级别
+// LogLevel / 日志级别
 type LogLevel int
 
 const (
@@ -24,14 +24,14 @@ const (
 	LevelError
 )
 
-// 无状态日志消息
+// Stateless log message / 无状态日志消息
 type MsgLog struct {
 	PluginID string
 	Level    LogLevel
 	Text     string
 }
 
-// 进度条消息
+// Progress bar message / 进度条消息
 type MsgPullStart struct {
 	PluginID  string
 	ServiceID string

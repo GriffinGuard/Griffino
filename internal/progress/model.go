@@ -49,10 +49,10 @@ type pullState struct {
 	done       bool
 }
 
-// pluginPullGroup 一个 pluginID 下可能有多个 service 在拉镜像
+// pluginPullGroup: one pluginID may have multiple services pulling images / 一个 pluginID 下可能有多个 service 在拉镜像
 type pluginPullGroup struct {
-	services   map[string]*pullState
-	svcOrder   []string
+	services map[string]*pullState
+	svcOrder []string
 }
 
 type logEntry struct {
@@ -64,7 +64,7 @@ type logEntry struct {
 type Model struct {
 	logs      []logEntry
 	pulls     map[string]*pluginPullGroup // pluginID -> group
-	pullOrder []string                    // 保持 pluginID 顺序
+	pullOrder []string                    // Preserve pluginID order / 保持 pluginID 顺序
 	spinner   spinner.Model
 }
 
@@ -152,7 +152,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if msg.Type == tea.KeyCtrlC {
 			p, _ := os.FindProcess(os.Getpid())
-        	p.Signal(syscall.SIGINT)
+			p.Signal(syscall.SIGINT)
 		}
 	}
 
@@ -162,7 +162,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	var sb strings.Builder
 
-	// 日志区
+	// Log area / 日志区
 	for _, entry := range m.logs {
 		prefix := formatPrefix(entry.pluginID)
 		switch entry.level {
@@ -177,7 +177,7 @@ func (m Model) View() string {
 		}
 	}
 
-	// 进度条区
+	// Progress bar area / 进度条区
 	for _, pluginID := range m.pullOrder {
 		g := m.pulls[pluginID]
 		prefix := formatPrefix(pluginID)

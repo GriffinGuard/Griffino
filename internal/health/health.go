@@ -16,10 +16,11 @@ package health
 
 import (
 	"context"
-	"time"
 	"log/slog"
+	"time"
 
 	griffinoi18n "github.com/GriffinGuard/Griffino/internal/i18n"
+	"github.com/GriffinGuard/Griffino/internal/metrics"
 	"github.com/GriffinGuard/Griffino/internal/progress"
 	"github.com/GriffinGuard/Griffino/internal/store"
 	dockercontainer "github.com/docker/docker/api/types/container"
@@ -27,16 +28,16 @@ import (
 	"github.com/docker/docker/client"
 )
 
-// TaskScheduler 是 taskscheduler 包的抽象，避免循环依赖
+// TaskScheduler abstracts the taskscheduler package, avoiding circular imports / taskscheduler 包的抽象，避免循环依赖
 type TaskScheduler interface {
 	FailTasksByPlugin(pluginID string)
 }
 
 type Checker struct {
-	docker   *client.Client
-	store    *store.Store
-	scheduler TaskScheduler  // 可为 nil，未初始化时跳过 Task 通知
-	interval time.Duration
+	docker    *client.Client
+	store     *store.Store
+	scheduler TaskScheduler // Can be nil; skip Task notifications when uninitialized / 可为 nil，未初始化时跳过 Task 通知
+	interval  time.Duration
 }
 
 func NewChecker(docker *client.Client, store *store.Store, scheduler TaskScheduler) *Checker {
@@ -48,10 +49,10 @@ func NewChecker(docker *client.Client, store *store.Store, scheduler TaskSchedul
 	}
 }
 
-// Start 启动后台健康检查，每 30 秒检查一次所有插件的容器状态
+// Start launches a background health check that inspects all plugin containers every 30 seconds / 启动后台健康检查，每 30 秒检查一次所有插件的容器状态
 func (c *Checker) Start(ctx context.Context) {
 	go func() {
-		// 启动时先检查一次
+		// Run an initial check on startup / 启动时先检查一次
 		c.check(ctx)
 		ticker := time.NewTicker(c.interval)
 		defer ticker.Stop()
@@ -90,7 +91,7 @@ func (c *Checker) check(ctx context.Context) {
 
 		switch {
 		case allRunning && plugin.Status == store.StatusFailed:
-			// 容器已恢复，状态从 failed 更新为 running
+			// Container recovered: update status from failed to running / 容器已恢复，状态从 failed 更新为 running
 			slog.Info("plugin containers recovered, updating status to running",
 				"plugin", plugin.ID)
 			progress.Log(plugin.ID, griffinoi18n.T(griffinoi18n.MsgHealthPluginRecovered,
@@ -101,10 +102,11 @@ func (c *Checker) check(ctx context.Context) {
 				instance.FailStage = ""
 				instance.FailReason = ""
 				_ = c.store.SavePlugin(instance)
+				metrics.HealthTransition(string(store.StatusRunning))
 			}
 
 		case !allRunning && plugin.Status == store.StatusRunning:
-			// 容器意外挂掉，状态从 running 更新为 failed
+			// Container crashed unexpectedly: update status from running to failed / 容器意外挂掉，状态从 running 更新为 failed
 			slog.Warn("plugin containers down, marking as failed", "plugin", plugin.ID)
 			instance, err := c.store.GetPlugin(plugin.ID)
 			if err == nil && instance != nil {
@@ -112,8 +114,9 @@ func (c *Checker) check(ctx context.Context) {
 				instance.FailStage = "restart"
 				instance.FailReason = "containers unexpectedly stopped"
 				_ = c.store.SavePlugin(instance)
+				metrics.HealthTransition(string(store.StatusFailed))
 			}
-			// 通知 Task 调度器：该插件相关的进行中 Task 全部失败
+			// Notify the Task scheduler: mark all in-progress Tasks for this plugin as failed / 通知 Task 调度器，该插件相关的进行中 Task 全部失败
 			if c.scheduler != nil {
 				go c.scheduler.FailTasksByPlugin(plugin.ID)
 			}

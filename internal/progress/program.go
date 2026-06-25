@@ -27,13 +27,13 @@ var (
 	programMu     sync.RWMutex
 )
 
-// Init 启动全局 bubbletea 实例，在 daemon 启动时尽早调用。
-// 在独立 goroutine 里运行，不阻塞调用方。
+// Init starts the global bubbletea instance; call it early during daemon startup.
+// Runs in a separate goroutine and does not block the caller / 启动全局 bubbletea 实例，在 daemon 启动时尽早调用，独立 goroutine 运行不阻塞调用方.
 func Init() {
 	m := newModel()
 	p := tea.NewProgram(m,
 		tea.WithMouseCellMotion(),
-		tea.WithoutSignalHandler(), // 禁用 bubbletea 自己的 Ctrl+C 处理
+		tea.WithoutSignalHandler(), // Disable bubbletea's own Ctrl+C handling / 禁用 bubbletea 自己的 Ctrl+C 处理
 	)
 	programMu.Lock()
 	globalProgram = p
@@ -45,7 +45,7 @@ func Init() {
 	}()
 }
 
-// send 发送消息给全局 bubbletea，fallback 到 fmt.Printf。
+// send sends a message to the global bubbletea; falls back to fmt.Printf / 发送消息给全局 bubbletea，fallback 到 fmt.Printf.
 func send(msg tea.Msg) {
 	programMu.RLock()
 	p := globalProgram
@@ -56,7 +56,7 @@ func send(msg tea.Msg) {
 		return
 	}
 
-	// fallback：bubbletea 尚未初始化时直接打印
+	// Fallback: print directly when bubbletea hasn't been initialized yet / fallback：bubbletea 尚未初始化时直接打印
 	switch m := msg.(type) {
 	case MsgLog:
 		prefix := formatPrefix(m.PluginID)
@@ -77,7 +77,7 @@ func send(msg tea.Msg) {
 	}
 }
 
-// ── 无状态日志 API ────────────────────────────────────────────────────────────
+// ── Stateless log API ────────────────────────────────────────────────────────
 
 func Log(pluginID, text string) {
 	send(MsgLog{PluginID: pluginID, Level: LevelInfo, Text: text})
@@ -95,7 +95,7 @@ func Error(pluginID, text string) {
 	send(MsgLog{PluginID: pluginID, Level: LevelError, Text: text})
 }
 
-// ── 进度条 API ────────────────────────────────────────────────────────────────
+// ── Progress bar API ────────────────────────────────────────────────────────
 
 func PullStart(pluginID, serviceID, imageRef string) {
 	send(MsgPullStart{PluginID: pluginID, ServiceID: serviceID, ImageRef: imageRef})
@@ -117,23 +117,23 @@ func PullDone(pluginID, serviceID string) {
 }
 
 func Shutdown() {
-    programMu.RLock()
-    p := globalProgram
-    programMu.RUnlock()
-    if p == nil {
-        return
-    }
+	programMu.RLock()
+	p := globalProgram
+	programMu.RUnlock()
+	if p == nil {
+		return
+	}
 
-    time.Sleep(200 * time.Millisecond)
-    p.Quit()
+	time.Sleep(200 * time.Millisecond)
+	p.Quit()
 
-    done := make(chan struct{})
-    go func() {
-        p.Wait()
-        close(done)
-    }()
-    select {
-    case <-done:
-    case <-time.After(3 * time.Second):
-    }
+	done := make(chan struct{})
+	go func() {
+		p.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+	}
 }

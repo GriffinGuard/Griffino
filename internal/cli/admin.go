@@ -18,9 +18,9 @@ import (
 	"errors"
 	"log/slog"
 
-	griffinoi18n "github.com/GriffinGuard/Griffino/internal/i18n"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/GriffinGuard/Griffino/internal/config"
+	griffinoi18n "github.com/GriffinGuard/Griffino/internal/i18n"
 	"github.com/GriffinGuard/Griffino/internal/progress"
 	"github.com/GriffinGuard/Griffino/internal/store"
 	"github.com/spf13/cobra"

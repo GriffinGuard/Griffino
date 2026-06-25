@@ -15,27 +15,27 @@
 package container
 
 import (
-    "context"
-    "fmt"
+	"context"
+	"fmt"
 
-    "github.com/docker/docker/client"
+	"github.com/docker/docker/client"
 )
 
-// NewDockerClient 创建 Docker 客户端
+// NewDockerClient creates a Docker client / 创建 Docker 客户端
 func NewDockerClient() (*client.Client, error) {
-    cli, err := client.NewClientWithOpts(
-        client.FromEnv,
-        client.WithAPIVersionNegotiation(),
-    )
-    if err != nil {
-        return nil, fmt.Errorf("failed to create Docker client: %w", err)
-    }
+	cli, err := client.NewClientWithOpts(
+		client.FromEnv,
+		client.WithAPIVersionNegotiation(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Docker client: %w", err)
+	}
 
-    // 验证连接
-    ctx := context.Background()
-    if _, err := cli.Ping(ctx); err != nil {
-        return nil, fmt.Errorf("cannot connect to Docker, is Docker running?: %w", err)
-    }
+	// Verify connection / 验证连接
+	ctx := context.Background()
+	if _, err := cli.Ping(ctx); err != nil {
+		return nil, fmt.Errorf("cannot connect to Docker, is Docker running?: %w", err)
+	}
 
-    return cli, nil
+	return cli, nil
 }

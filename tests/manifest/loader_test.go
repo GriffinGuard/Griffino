@@ -15,77 +15,77 @@
 package manifest_test
 
 import (
-    "testing"
-    
-    "github.com/GriffinGuard/Griffino/pkg/manifest"
+	"testing"
+
+	"github.com/GriffinGuard/Griffino/pkg/manifest"
 )
 
 func TestLoad(t *testing.T) {
-    pkg, err := manifest.Load("../../testdata/telegram_bot")
-    if err != nil {
-        t.Fatalf("Load() 失败: %v", err)
-    }
+	pkg, err := manifest.Load("../../testdata/telegram_bot")
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
 
-    // 验证 plugin.manifest.json
-    t.Run("manifest基本字段", func(t *testing.T) {
-        if pkg.Manifest.ID != "cc.griffino.telegram_bot" {
-            t.Errorf("期望 ID=cc.griffino.telegram_bot, 实际=%s", pkg.Manifest.ID)
-        }
-        if len(pkg.Manifest.Capabilities) != 1 {
-            t.Errorf("期望 1 个 capability, 实际=%d", len(pkg.Manifest.Capabilities))
-        }
-        if pkg.Manifest.Capabilities[0].ID != "send_notification" {
-            t.Errorf("期望 capability ID=send_notification, 实际=%s", pkg.Manifest.Capabilities[0].ID)
-        }
-    })
+	// verify plugin.manifest.json / 验证 plugin.manifest.json
+	t.Run("manifest basic fields", func(t *testing.T) {
+		if pkg.Manifest.ID != "cc.griffino.telegram_bot" {
+			t.Errorf("want ID=cc.griffino.telegram_bot, got=%s", pkg.Manifest.ID)
+		}
+		if len(pkg.Manifest.Capabilities) != 4 {
+			t.Errorf("want 4 capabilities, got=%d", len(pkg.Manifest.Capabilities))
+		}
+		if pkg.Manifest.Capabilities[0].ID != "send_notification" {
+			t.Errorf("want capability ID=send_notification, got=%s", pkg.Manifest.Capabilities[0].ID)
+		}
+	})
 
-    // 验证 config.boot.json
-    t.Run("config服务和参数", func(t *testing.T) {
-        if len(pkg.BootConfig.Services) != 2 {
-            t.Errorf("期望 2 个 service, 实际=%d", len(pkg.BootConfig.Services))
-        }
+	// verify config.boot.json / 验证 config.boot.json
+	t.Run("config services and params", func(t *testing.T) {
+		if len(pkg.BootConfig.Services) != 2 {
+			t.Errorf("want 2 services, got=%d", len(pkg.BootConfig.Services))
+		}
 
-        // 找到 telegram-bot-api 服务
-        var apiService *manifest.ServiceConfig
-        for i := range pkg.BootConfig.Services {
-            if pkg.BootConfig.Services[i].ID == "telegram-bot-api" {
-                apiService = &pkg.BootConfig.Services[i]
-            }
-        }
-        if apiService == nil {
-            t.Fatal("找不到 telegram-bot-api 服务配置")
-        }
-        if len(apiService.Configs) != 2 {
-            t.Errorf("telegram-bot-api 期望 2 个配置项, 实际=%d", len(apiService.Configs))
-        }
-    })
+		// find the telegram-bot-api service / 找到 telegram-bot-api 服务
+		var apiService *manifest.ServiceConfig
+		for i := range pkg.BootConfig.Services {
+			if pkg.BootConfig.Services[i].ID == "telegram-bot-api" {
+				apiService = &pkg.BootConfig.Services[i]
+			}
+		}
+		if apiService == nil {
+			t.Fatal("telegram-bot-api service config not found")
+		}
+		if len(apiService.Configs) != 2 {
+			t.Errorf("telegram-bot-api: want 2 config items, got=%d", len(apiService.Configs))
+		}
+	})
 
-    // 验证 plugin.boot.yml
-    t.Run("boot spec服务定义", func(t *testing.T) {
-        if len(pkg.BootSpec.Services) != 3 {
-            t.Errorf("期望 3 个 service, 实际=%d", len(pkg.BootSpec.Services))
-        }
-        if pkg.BootSpec.MainServiceID != "bot-app" {
-            t.Errorf("期望 mainServiceId=bot-app, 实际=%s", pkg.BootSpec.MainServiceID)
-        }
+	// verify plugin.boot.yml / 验证 plugin.boot.yml
+	t.Run("boot spec service definitions", func(t *testing.T) {
+		if len(pkg.BootSpec.Services) != 3 {
+			t.Errorf("want 3 services, got=%d", len(pkg.BootSpec.Services))
+		}
+		if pkg.BootSpec.MainServiceID != "bot-app" {
+			t.Errorf("want mainServiceId=bot-app, got=%s", pkg.BootSpec.MainServiceID)
+		}
 
-        botApp, ok := pkg.BootSpec.Services["bot-app"]
-        if !ok {
-            t.Fatal("找不到 bot-app 服务定义")
-        }
-        if len(botApp.DependsOn) != 2 {
-            t.Errorf("bot-app 期望 2 个依赖, 实际=%d", len(botApp.DependsOn))
-        }
-    })
+		botApp, ok := pkg.BootSpec.Services["bot-app"]
+		if !ok {
+			t.Fatal("bot-app service definition not found")
+		}
+		if len(botApp.DependsOn) != 2 {
+			t.Errorf("bot-app: want 2 dependencies, got=%d", len(botApp.DependsOn))
+		}
+	})
 }
 
 func TestValidate(t *testing.T) {
-    pkg, err := manifest.Load("../../testdata/telegram_bot")
-    if err != nil {
-        t.Fatalf("Load() 失败: %v", err)
-    }
+	pkg, err := manifest.Load("../../testdata/telegram_bot")
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
 
-    if err := manifest.Validate(pkg); err != nil {
-        t.Fatalf("Validate() 失败: %v", err)
-    }
+	if err := manifest.Validate(pkg); err != nil {
+		t.Fatalf("Validate() failed: %v", err)
+	}
 }

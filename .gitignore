@@ -29,12 +29,23 @@ go.work.sum
 .DS_Store
 Thumbs.db
 
-# Build output
-dist/
+# Build output (GoReleaser writes to the repo-root dist/)
+/dist/
 build/
+
+# Embedded Web UI: fetched build artifacts are ignored, but the placeholder
+# index.html is tracked so `go build` works before scripts/fetch-webui.sh runs.
+/internal/api/web/dist/*
+!/internal/api/web/dist/index.html
 
 # Griffino local config (may contain credentials)
 .griffino/
+
+# Credentials / secrets
+.env
+.env.*
+*.pem
+*.key
 
 # Logs
 *.log

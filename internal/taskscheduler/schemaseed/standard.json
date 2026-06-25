@@ -1,0 +1,111 @@
+[
+  {
+    "interfaceRef": "griffino.interfaces.ai.chat@1.0.0",
+    "inputPorts": [
+      { "id": "messages", "type": "json", "required": true, "description": "Conversation history (OpenAI-compatible)." },
+      { "id": "overrides", "type": "json", "description": "Per-request parameter overrides." }
+    ],
+    "outputPorts": [
+      { "id": "content", "type": "text", "description": "AI response text." },
+      { "id": "model", "type": "text", "description": "Model used to generate the response." },
+      { "id": "usage", "type": "json", "description": "Token usage statistics." }
+    ]
+  },
+  {
+    "interfaceRef": "griffino.interfaces.ai.embedding@1.0.0",
+    "inputPorts": [
+      { "id": "input", "type": "json", "required": true, "description": "One or more texts to embed." }
+    ],
+    "outputPorts": [
+      { "id": "embeddings", "type": "json", "description": "Embedding vectors, one per input." },
+      { "id": "model", "type": "text", "description": "Model used." },
+      { "id": "dimensions", "type": "int", "description": "Dimensionality of each vector." }
+    ]
+  },
+  {
+    "interfaceRef": "griffino.interfaces.ai.speech.transcribe@1.0.0",
+    "inputPorts": [
+      { "id": "filePath", "type": "file", "required": true, "description": "Input audio file under the /pipeline mount." },
+      { "id": "language", "type": "text", "description": "Source language hint (BCP-47) or auto." }
+    ],
+    "outputPorts": [
+      { "id": "text", "type": "text", "description": "Full transcript." },
+      { "id": "language", "type": "text", "description": "Detected or used language." },
+      { "id": "durationSeconds", "type": "float", "description": "Audio duration in seconds." },
+      { "id": "segments", "type": "json", "description": "Time-aligned transcript segments." }
+    ]
+  },
+  {
+    "interfaceRef": "griffino.interfaces.messaging.notification@1.0.0",
+    "inputPorts": [
+      { "id": "content", "type": "text", "required": true, "description": "Notification body." },
+      { "id": "title", "type": "text", "description": "Optional title." },
+      { "id": "format", "type": "text", "description": "plain or markdown." },
+      { "id": "metadata", "type": "json", "description": "Provider-specific metadata." }
+    ],
+    "outputPorts": [
+      { "id": "messageId", "type": "text", "description": "Provider-assigned message ID." }
+    ]
+  },
+  {
+    "interfaceRef": "griffino.interfaces.web.search@1.0.0",
+    "inputPorts": [
+      { "id": "query", "type": "text", "required": true, "description": "Search query." },
+      { "id": "maxResults", "type": "int", "description": "Maximum number of results." },
+      { "id": "language", "type": "text", "description": "Preferred result language (BCP-47)." },
+      { "id": "freshness", "type": "text", "description": "Recency filter." }
+    ],
+    "outputPorts": [
+      { "id": "results", "type": "json", "description": "Ranked search results." }
+    ]
+  },
+  {
+    "interfaceRef": "griffino.interfaces.web.scrape@1.0.0",
+    "inputPorts": [
+      { "id": "url", "type": "text", "required": true, "description": "URL to fetch and extract." },
+      { "id": "format", "type": "text", "description": "markdown, text, or html." },
+      { "id": "includeMetadata", "type": "bool", "description": "Whether to extract page metadata." }
+    ],
+    "outputPorts": [
+      { "id": "url", "type": "text", "description": "Final URL after redirects." },
+      { "id": "title", "type": "text", "description": "Extracted page title." },
+      { "id": "content", "type": "text", "description": "Extracted content in the requested format." },
+      { "id": "metadata", "type": "json", "description": "Extracted page metadata." }
+    ]
+  },
+  {
+    "interfaceRef": "griffino.interfaces.knowledge.vector.upsert@1.0.0",
+    "inputPorts": [
+      { "id": "collection", "type": "text", "required": true, "description": "Target collection / namespace." },
+      { "id": "items", "type": "json", "required": true, "description": "Vectors to insert or update." }
+    ],
+    "outputPorts": [
+      { "id": "upsertedCount", "type": "int", "description": "Number of vectors inserted or updated." },
+      { "id": "ids", "type": "json", "description": "IDs of the upserted vectors." }
+    ]
+  },
+  {
+    "interfaceRef": "griffino.interfaces.knowledge.vector.query@1.0.0",
+    "inputPorts": [
+      { "id": "collection", "type": "text", "required": true, "description": "Collection / namespace to search." },
+      { "id": "vector", "type": "embedding", "required": true, "description": "Query embedding vector." },
+      { "id": "topK", "type": "int", "description": "Number of nearest matches to return." },
+      { "id": "filter", "type": "json", "description": "Metadata equality filter." }
+    ],
+    "outputPorts": [
+      { "id": "matches", "type": "json", "description": "Nearest matches ordered by descending score." }
+    ]
+  },
+  {
+    "interfaceRef": "griffino.interfaces.file.video.process@1.0.0",
+    "inputPorts": [
+      { "id": "filePath", "type": "file", "required": true, "description": "Input file under the /pipeline mount." },
+      { "id": "outputPath", "type": "file", "description": "Desired output file path under /pipeline." },
+      { "id": "options", "type": "json", "description": "Processor-specific parameters." }
+    ],
+    "outputPorts": [
+      { "id": "outputPath", "type": "file", "description": "Path to the processed output file." },
+      { "id": "metadata", "type": "json", "description": "Processing metadata (duration, resolution, codec, …)." }
+    ]
+  }
+]

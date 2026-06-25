@@ -31,18 +31,18 @@ type noopLogger struct{}
 
 func (noopLogger) Log(string) {}
 
-// ProvisionLoggerFunc 函数类型适配器，方便调用方注入匿名函数
+// ProvisionLoggerFunc is a function type adapter, allowing callers to inject anonymous functions / 函数类型适配器，方便调用方注入匿名函数
 type ProvisionLoggerFunc func(string)
 
 func (f ProvisionLoggerFunc) Log(text string) { f(text) }
 
 type Provisioner struct {
-	client *Client
+	client BrokerClient
 	vhost  string
 	logger ProvisionLogger
 }
 
-func NewProvisioner(client *Client, vhost string) *Provisioner {
+func NewProvisioner(client BrokerClient, vhost string) *Provisioner {
 	return &Provisioner{client: client, vhost: vhost, logger: noopLogger{}}
 }
 
@@ -50,7 +50,7 @@ func (p *Provisioner) SetLogger(l ProvisionLogger) {
 	p.logger = l
 }
 
-// PluginResources 为插件创建的 RabbitMQ 资源信息
+// PluginResources holds the RabbitMQ resource info created for a plugin / 为插件创建的 RabbitMQ 资源信息
 type PluginResources struct {
 	Username  string
 	Password  string
@@ -59,7 +59,7 @@ type PluginResources struct {
 	Queues    []string
 }
 
-// Provision 根据插件 manifest 中的 capabilities 创建所需的 RabbitMQ 资源
+// Provision creates the required RabbitMQ resources based on the plugin manifest's capabilities / 根据 manifest 中的 capabilities 创建所需的 RabbitMQ 资源
 func (p *Provisioner) Provision(m *manifest.PluginManifest) (*PluginResources, error) {
 	username := fmt.Sprintf("griffino.plugin.%s", m.ID)
 	password, err := generatePassword()
@@ -110,8 +110,8 @@ func (p *Provisioner) Provision(m *manifest.PluginManifest) (*PluginResources, e
 		resources.Queues = append(resources.Queues, queueName)
 	}
 
-	// 声明 actions 队列（接收所有发给此插件的动作消息）
-	// 队列命名：action.{pluginId}，binding key：action.{pluginId}.#
+	// Declare actions queue (receives all action messages sent to this plugin) / 声明 actions 队列，接收所有发给此插件的动作消息
+	// Queue naming: action.{pluginId}, binding key: action.{pluginId}.# / 队列命名
 	actionsQueue := fmt.Sprintf("action.%s", m.ID)
 	p.logger.Log(fmt.Sprintf("declaring actions queue: %s", actionsQueue))
 	if err := p.client.DeclareQueue(p.vhost, actionsQueue, true); err != nil {
@@ -129,7 +129,7 @@ func (p *Provisioner) Provision(m *manifest.PluginManifest) (*PluginResources, e
 	return resources, nil
 }
 
-// Teardown 清理插件的所有 RabbitMQ 资源
+// Teardown cleans up all RabbitMQ resources for the plugin / 清理插件的所有 RabbitMQ 资源
 func (p *Provisioner) Teardown(resources *PluginResources) error {
 	p.logger.Log(fmt.Sprintf("deleting RabbitMQ user: %s", resources.Username))
 	if err := p.client.DeleteUser(resources.Username); err != nil {
@@ -138,7 +138,7 @@ func (p *Provisioner) Teardown(resources *PluginResources) error {
 	return nil
 }
 
-// SyncCredentials 将已有凭据重新同步到 RabbitMQ（用于重启场景）
+// SyncCredentials re-syncs existing credentials to RabbitMQ (restart scenario) / 重启场景：重新同步已有凭据.
 func (p *Provisioner) SyncCredentials(username, password string, m *manifest.PluginManifest) error {
 	p.logger.Log(fmt.Sprintf("syncing RabbitMQ credentials: %s", username))
 	if err := p.client.SetUserPassword(username, password); err != nil {
@@ -158,7 +158,7 @@ func generatePassword() (string, error) {
 func (p *Provisioner) setPermissions(username, pluginID string) error {
 	pluginIDEscaped := strings.ReplaceAll(pluginID, ".", "\\.")
 	configurePattern := fmt.Sprintf("^(plugin\\.%s\\..*|action\\.%s|amq\\.gen-.*)", pluginIDEscaped, pluginIDEscaped)
-	writePattern     := fmt.Sprintf("^(griffino\\.plugins|griffino\\.router|plugin\\.%s\\..*|amq\\.gen-.*|amq\\.default)", pluginIDEscaped)
-	readPattern      := fmt.Sprintf("^(griffino\\.plugins|griffino\\.router|griffino\\.actions|plugin\\.%s\\..*|action\\.%s|amq\\.gen-.*)", pluginIDEscaped, pluginIDEscaped)
+	writePattern := fmt.Sprintf("^(griffino\\.plugins|griffino\\.router|plugin\\.%s\\..*|amq\\.gen-.*|amq\\.default)", pluginIDEscaped)
+	readPattern := fmt.Sprintf("^(griffino\\.plugins|griffino\\.router|griffino\\.actions|plugin\\.%s\\..*|action\\.%s|amq\\.gen-.*)", pluginIDEscaped, pluginIDEscaped)
 	return p.client.SetPermissions(username, p.vhost, configurePattern, writePattern, readPattern)
 }

@@ -25,12 +25,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const (
-	// 登录安全相关配置
-	loginMaxAttempts = 5
-	loginWindowTTL   = 15 * time.Minute
-	loginLockTTL     = 15 * time.Minute
-)
+// securityTTL returns the configured session TTL, falling back to the default
+// (168 h) if the store read fails.
+func (s *Server) securityTTL() time.Duration {
+	p, err := s.st.GetSecurityPolicies()
+	if err != nil {
+		return 168 * time.Hour
+	}
+	return time.Duration(p.SessionTTLHours) * time.Hour
+}
 
 func loginAttemptsKey(username string) string {
 	return fmt.Sprintf("login:attempts:%s", username)
@@ -40,6 +43,19 @@ func loginLockKey(username string) string {
 	return fmt.Sprintf("login:lock:%s", username)
 }
 
+// handleLogin authenticates a user and issues a session token.
+//
+//	@Summary	Log in
+//	@Tags		Auth
+//	@Accept		json
+//	@Produce	json
+//	@Param		credentials	body		object	true	"username and password"
+//	@Success	200			{object}	map[string]interface{}
+//	@Failure	400			{object}	api.AppError
+//	@Failure	401			{object}	api.AppError
+//	@Failure	429			{object}	api.AppError
+//	@Failure	500			{object}	api.AppError
+//	@Router		/auth/login [post]
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username"`
@@ -52,48 +68,54 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	// 检查是否已被锁定
+	// Load security policies (falls back to defaults on error) / 读取安全策略，失败时使用默认值
+	policy, _ := s.st.GetSecurityPolicies()
+	loginWindowTTL := time.Duration(policy.LockoutDurationMinutes) * time.Minute
+	loginLockTTL := time.Duration(policy.LockoutDurationMinutes) * time.Minute
+	sessionTTL := time.Duration(policy.SessionTTLHours) * time.Hour
+
+	// Check if account is locked / 检查是否已被锁定
 	lockKey := loginLockKey(req.Username)
 	locked, _ := s.sessionMgr.Exists(ctx, lockKey)
 	if locked {
 		ttl, _ := s.sessionMgr.TTL(ctx, lockKey)
 		writeAppError(w, http.StatusTooManyRequests, ErrAuthRateLimited, "Account is locked",
-    		map[string]interface{}{"retryAfterMinutes": int(ttl.Minutes()) + 1})
+			map[string]interface{}{"retryAfterMinutes": int(ttl.Minutes()) + 1})
 		return
 	}
 
-	// 验证密码
+	// Verify password / 验证密码
 	user, err := s.st.VerifyPassword(req.Username, req.Password)
 	if err != nil {
-		// 记录失败次数
+		// Record failed attempt count / 记录失败次数
 		attemptsKey := loginAttemptsKey(req.Username)
 		attempts, _ := s.sessionMgr.Incr(ctx, attemptsKey)
 		if attempts == 1 {
-			// 第一次失败，设置窗口 TTL
+			// First failure: set window TTL / 第一次失败，设置窗口 TTL
 			s.sessionMgr.Expire(ctx, attemptsKey, loginWindowTTL)
 		}
-		remaining := loginMaxAttempts - int(attempts)
+		remaining := policy.MaxLoginAttempts - int(attempts)
 		if remaining <= 0 {
-			// 达到上限，锁定账号，清除计数
+			// Limit reached: lock account and clear attempt counter / 达到上限，锁定账号，清除计数
 			s.sessionMgr.Set(ctx, lockKey, "1", loginLockTTL)
 			s.sessionMgr.Del(ctx, attemptsKey)
 			writeAppError(w, http.StatusTooManyRequests, ErrAuthRateLimited, "Too many failed attempts, account locked",
-    			map[string]interface{}{"lockDurationMinutes": int(loginLockTTL.Minutes())})
+				map[string]interface{}{"lockDurationMinutes": policy.LockoutDurationMinutes})
 			return
 		}
 		writeAppError(w, http.StatusUnauthorized, ErrAuthInvalidCredentials, "Invalid username or password",
-    		map[string]interface{}{"remainingAttempts": remaining})
+			map[string]interface{}{"remainingAttempts": remaining})
 		return
 	}
 
-	// 登录成功，清除失败计数
+	// Login succeeded: clear failed attempt counter / 登录成功，清除失败计数
 	s.sessionMgr.Del(ctx, loginAttemptsKey(req.Username))
 
 	token, err := s.sessionMgr.Create(ctx, auth.SessionData{
 		UserID:   user.ID,
 		Username: user.Username,
 		Role:     string(user.Role),
-	})
+	}, sessionTTL)
 	if err != nil {
 		writeAppError(w, http.StatusInternalServerError, ErrAuthSessionFailed, "Failed to create session")
 		return
@@ -107,6 +129,14 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleLogout invalidates the caller's session token.
+//
+//	@Summary	Log out
+//	@Tags		Auth
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Success	200	{object}	map[string]interface{}
+//	@Router		/auth/logout [post]
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	token := strings.TrimPrefix(authHeader, "Bearer ")
@@ -114,15 +144,41 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// handleMe returns the current session's user profile.
+//
+//	@Summary	Get current user
+//	@Tags		Auth
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Success	200	{object}	map[string]interface{}
+//	@Router		/auth/me [get]
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value(sessionKey).(*auth.SessionData)
-	writeJSON(w, http.StatusOK, map[string]any{
+	resp := map[string]any{
 		"userId":   session.UserID,
 		"username": session.Username,
 		"role":     session.Role,
-	})
+	}
+	if user, err := s.st.GetUserByUsername(session.Username); err == nil && user != nil {
+		resp["email"] = user.Email
+		resp["displayName"] = user.DisplayName
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
+// handleChangePassword changes the current user's password.
+//
+//	@Summary	Change password
+//	@Tags		Auth
+//	@Accept		json
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		body	body		object	true	"oldPassword and newPassword"
+//	@Success	200		{object}	map[string]interface{}
+//	@Failure	400		{object}	api.AppError
+//	@Failure	403		{object}	api.AppError
+//	@Failure	500		{object}	api.AppError
+//	@Router		/auth/password [post]
 func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value(sessionKey).(*auth.SessionData)
 
@@ -159,5 +215,6 @@ func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.writeAuditLog(r, "CHANGE_PASSWORD", "users/"+session.Username, "", "info")
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

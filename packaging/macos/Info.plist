@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Menu-bar agent: no Dock icon, lives only in the macOS menu bar. -->
+	<key>LSUIElement</key>
+	<true/>
+
+	<!-- The bundle executable is a tiny launcher script that execs the real
+	     griffino binary with the `tray` subcommand (see build-app.sh). macOS
+	     cannot pass arguments to CFBundleExecutable via Info.plist, hence the
+	     launcher. -->
+	<key>CFBundleExecutable</key>
+	<string>Griffino</string>
+
+	<key>CFBundleIdentifier</key>
+	<string>dev.griffino.Griffino</string>
+
+	<key>CFBundleName</key>
+	<string>Griffino</string>
+
+	<key>CFBundleDisplayName</key>
+	<string>Griffino</string>
+
+	<key>CFBundleIconFile</key>
+	<string>Griffino</string>
+
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+
+	<!-- Replaced by build-app.sh with the build version (e.g. 0.1.0). -->
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundleVersion</key>
+	<string>__VERSION__</string>
+
+	<key>LSMinimumSystemVersion</key>
+	<string>11.0</string>
+
+	<key>NSHighResolutionCapable</key>
+	<true/>
+
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2025 GriffinGuard. Licensed under the Apache License, Version 2.0.</string>
+</dict>
+</plist>

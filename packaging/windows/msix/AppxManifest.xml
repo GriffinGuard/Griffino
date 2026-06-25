@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MSIX package manifest for the Microsoft Store distribution of Griffino.
+
+  Scope and intent (see scripts/build-msix.sh and the release workflow):
+    - Full-trust packaged classic app: griffino.exe runs unchanged inside the
+      package, reaching Docker Desktop and ~/.griffino exactly as the MSI build
+      does. The same binary detects package identity at runtime (see
+      internal/cli/service_windows.go: isPackaged) and routes `griffino service`
+      to OS-managed autostart instead of schtasks.
+    - windows.appExecutionAlias exposes `griffino` as a terminal command (the
+      PATH-equivalent for packaged apps), so the CLI/TUI works from any shell.
+    - windows.startupTask gives OPT-IN logon autostart (Enabled="false"): it is
+      off until the user enables "Griffino" under Settings -> Startup apps,
+      matching the current opt-in `griffino service install` semantics. It runs
+      the tiny griffino-startup.exe launcher, which execs
+      `griffino daemon` with the admin-init=web flag.
+
+  Placeholders (@...@) are substituted at build time by scripts/build-msix.sh
+  from the Partner Center reservation and the git tag:
+    @IDENTITY_NAME@           - reserved Store Identity/Name
+    @PUBLISHER@               - reserved Store Publisher (CN=...)
+    @PUBLISHER_DISPLAY_NAME@  - human-readable publisher
+    @VERSION@                 - 4-part MSIX version X.Y.Z.0
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap3 uap5 desktop rescap">
+
+  <Identity
+    Name="@IDENTITY_NAME@"
+    Publisher="@PUBLISHER@"
+    Version="@VERSION@"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Griffino</DisplayName>
+    <PublisherDisplayName>@PUBLISHER_DISPLAY_NAME@</PublisherDisplayName>
+    <Description>Plugin orchestration platform with message-driven containers.</Description>
+    <Logo>assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <!-- 10.0.17763 (1809) is the floor for windows.startupTask. -->
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <!-- Tile / Start launch runs the GUI launcher (griffino-startup.exe), which
+         execs `griffino tray`: a system-tray icon supervising a headless daemon,
+         with a menu to open the WebUI. So clicking the app gives the tray + web
+         console, not a flashing console window. -->
+    <Application Id="Griffino" Executable="griffino-startup.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Griffino"
+        Description="Plugin orchestration platform with message-driven containers."
+        BackgroundColor="transparent"
+        Square150x150Logo="assets\Square150x150Logo.png"
+        Square44x44Logo="assets\Square44x44Logo.png">
+        <uap:DefaultTile
+          Wide310x150Logo="assets\Wide310x150Logo.png"
+          Square310x310Logo="assets\Square310x310Logo.png" />
+      </uap:VisualElements>
+
+      <Extensions>
+        <!-- Terminal command: `griffino` (CLI + bubbletea TUI). -->
+        <uap3:Extension Category="windows.appExecutionAlias" Executable="griffino.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap3:AppExecutionAlias>
+            <desktop:ExecutionAlias Alias="griffino.exe" />
+          </uap3:AppExecutionAlias>
+        </uap3:Extension>
+
+        <!-- Opt-in logon autostart: off until the user enables it in
+             Settings -> Startup apps. Runs the same launcher (griffino tray), so
+             enabling it makes the tray appear at login. Left off by default to
+             avoid spinning up the Docker-backed daemon on every login. -->
+        <uap5:Extension Category="windows.startupTask" Executable="griffino-startup.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:StartupTask TaskId="GriffinoTray" Enabled="false" DisplayName="Griffino" />
+        </uap5:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- Full trust: required for a packaged classic app that talks to the
+         Docker engine and reads/writes the user profile (~/.griffino). -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

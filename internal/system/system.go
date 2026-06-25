@@ -57,7 +57,7 @@ func NewManager(docker *client.Client, store *store.Store) *Manager {
 	return &Manager{docker: docker, store: store}
 }
 
-// Shutdown 停止系统级容器（daemon 退出时调用）
+// Shutdown stops system-level containers (called when daemon exits) / 停止系统级容器（daemon 退出时调用）
 func (m *Manager) Shutdown(ctx context.Context) {
 	for _, name := range []string{RabbitMQContainerName, RedisContainerName} {
 		slog.Info("stopping system container", "name", name)
@@ -79,7 +79,7 @@ func (m *Manager) Shutdown(ctx context.Context) {
 	}
 }
 
-// Bootstrap 确保所有系统级基础服务正常运行
+// Bootstrap ensures all system-level infrastructure services are running / 确保所有系统级基础服务正常运行
 func (m *Manager) Bootstrap(ctx context.Context) error {
 	slog.Info("checking system network")
 	progress.Log("", griffinoi18n.T(griffinoi18n.MsgSystemCheckingNetwork))
